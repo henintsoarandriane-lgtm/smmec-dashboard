@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#C0392B" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="../manifest.json" />
+<link rel="apple-touch-icon" href="../img/logo-smmec.svg" />
+<title>Espace Client - SMMEC</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: #f4f7fc; display: flex; min-height: 100vh; transition: background 0.3s; overscroll-behavior: none; }
+body.dark { background: #1a1a1a; color: #e0e0e0; }
+body.dark .card, body.dark .grid-item, body.dark .header, body.dark .epargne-block { background: #2a2a2a !important; color: #e0e0e0; }
+body.dark .card h2, body.dark .grid-item .title, body.dark .page h1, body.dark .epargne-block h3 { color: #f0f0f0; }
+body.dark table th { background: #333; color: #f0f0f0; }
+body.dark .form-a4 { background: #2a2a2a; color: #e0e0e0; }
+body.dark .form-a4-field input, body.dark .form-a4-field select, body.dark .form-a4-field textarea { color: #e0e0e0; border-bottom-color: #F5B041; }
+body.dark .form-a4-header h2 { color: #F5B041; }
+
+/* SIDEBAR */
+.sidebar { width: 260px; background: #ebb45d; color: #1e293b; position: fixed; height: 100vh; overflow-y: auto; z-index: 1000; transition: transform 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+.sidebar .logo { padding: 18px 15px; text-align: center; border-bottom: 2px solid rgba(0,0,0,0.1); }
+.sidebar .logo img { max-width: 130px; height: auto; }
+.menu { list-style: none; padding: 10px 0; flex: 1; }
+.menu li { padding: 13px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; border-left: 4px solid transparent; transition: all 0.2s; }
+.menu li:hover, .menu li:active { background: rgba(0,0,0,0.08); }
+.menu li.active { background: #C0392B; color: #fff; border-left-color: #fff; font-weight: 600; }
+.menu li.active i { color: #fff; }
+.menu li i { color: #7B2D26; width: 20px; text-align: center; font-size: 16px; }
+.sidebar-footer { padding: 12px; text-align: center; font-size: 10px; color: #5A5A5A; border-top: 2px solid rgba(0,0,0,0.1); }
+.sidebar-footer #qrcode { display: flex; justify-content: center; margin-bottom: 6px; }
+.lang-selector { display: flex; gap: 4px; padding: 8px 15px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+.lang-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; background: transparent; color: #1e293b; }
+.lang-btn.active { background: #C0392B; color: #fff; border-color: #C0392B; }
+
+/* CONTENU */
+.main-content { margin-left: 260px; flex: 1; padding: 0; }
+.header { background: #fff; padding: 14px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; }
+.header h2 { color: #C0392B; font-size: 16px; }
+.header .user-info { display: flex; align-items: center; gap: 12px; }
+.header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #C0392B; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.header .name { font-weight: 600; color: #0a2a44; font-size: 13px; }
+.header .role { font-size: 10px; color: #64748b; }
+.header .logout-btn { background: #C0392B; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; }
+.header .mode-btn { background: transparent; border: none; font-size: 20px; cursor: pointer; margin-right: 10px; }
+
+.page { padding: 25px; display: none; animation: fadeIn 0.3s; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page h1 { color: #0a2a44; margin-bottom: 20px; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+
+/* CARROUSEL */
+.accueil-hero { position: relative; width: 100%; height: 60vh; min-height: 350px; border-radius: 12px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+.slider-container { display: flex; width: 100%; height: 100%; transition: transform 0.8s ease; }
+.slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; text-align: center; padding: 20px; }
+.slide-1 { background: linear-gradient(135deg, #F5B041, #C0392B); }
+.slide-2 { background: linear-gradient(135deg, #C0392B, #7B2D26); }
+.slide-3 { background: linear-gradient(135deg, #0a2a44, #1a4a6e); }
+.slide-4 { background: linear-gradient(135deg, #27ae60, #0a2a44); }
+.slide-content h1 { font-size: 32px; margin-bottom: 15px; font-weight: 700; }
+.slide-content p { font-size: 16px; opacity: 0.95; max-width: 600px; line-height: 1.6; margin: 0 auto; }
+.slide-content i { font-size: 60px; margin-bottom: 20px; opacity: 0.9; }
+.slider-dots { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
+.slider-dots span { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.5); cursor: pointer; transition: all 0.3s; }
+.slider-dots span.active { background: #fff; width: 30px; border-radius: 6px; }
+
+.welcome-block { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #C0392B; text-align: center; margin-bottom: 25px; }
+.welcome-block h2 { color: #0a2a44; font-size: 24px; margin-bottom: 12px; }
+.welcome-block .slogan { font-size: 20px; font-weight: 700; color: #C0392B; font-style: italic; letter-spacing: 1px; margin-top: 15px; }
+.welcome-block p { color: #64748b; line-height: 1.7; font-size: 14px; }
+
+/* ÉPARGNE */
+.epargne-container { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 15px; }
+.epargne-block { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-left: 6px solid #F5B041; padding: 25px 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 25px; transition: transform 0.2s; }
+.epargne-block:hover { transform: translateY(-3px); }
+.epargne-block h3 { color: #0a2a44; font-size: 18px; margin-bottom: 10px; }
+.epargne-block .code { font-size: 11px; color: #C0392B; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.epargne-block .description { color: #64748b; font-size: 13px; line-height: 1.7; margin-bottom: 12px; }
+.epargne-block .features { list-style: none; padding: 0; font-size: 13px; }
+.epargne-block .features li { padding: 5px 0; display: flex; align-items: center; gap: 8px; color: #334155; }
+.epargne-block .features li i { color: #27ae60; font-size: 12px; }
+.epargne-block .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+.epargne-block .info-item { background: #f8fafc; padding: 10px 12px; border-radius: 8px; font-size: 12px; }
+.epargne-block .info-item .label { color: #94a3b8; font-size: 10px; text-transform: uppercase; }
+.epargne-block .info-item .value { color: #0a2a44; font-weight: 700; font-size: 14px; margin-top: 3px; }
+.epargne-block .btn-create { background: #27ae60; color: #fff; border: none; padding: 13px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; }
+.epargne-block .btn-create:hover { background: #1e8449; }
+
+/* CRÉDIT */
+.credit-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.credit-type-card { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid #C0392B; transition: transform 0.2s; }
+.credit-type-card:hover { transform: translateY(-3px); }
+.credit-type-card h4 { color: #0a2a44; font-size: 15px; margin-bottom: 6px; }
+.credit-type-card .taux { color: #C0392B; font-weight: 700; font-size: 13px; }
+.credit-type-card .desc { color: #64748b; font-size: 12px; line-height: 1.5; margin-top: 8px; }
+
+.credit-info-block { background: linear-gradient(135deg, #fef9e7, #fef3c7); padding: 20px; border-radius: 12px; border-left: 5px solid #F5B041; margin-bottom: 20px; font-size: 13px; line-height: 1.8; }
+.credit-info-block h3 { color: #0a2a44; margin-bottom: 12px; font-size: 15px; }
+.credit-info-block ul { padding-left: 20px; }
+
+/* FORMULAIRE A4 */
+.form-a4 { background: #fff; padding: 40px; border-radius: 4px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); max-width: 800px; margin: 20px auto; border: 1px solid #e2e8f0; position: relative; }
+.form-a4::before { content: 'A4'; position: absolute; top: 10px; right: 15px; font-size: 10px; color: #cbd5e1; font-weight: 700; letter-spacing: 2px; }
+.form-a4-header { text-align: center; padding-bottom: 15px; border-bottom: 3px double #0a2a44; margin-bottom: 20px; }
+.form-a4-header h2 { color: #0a2a44; font-size: 18px; font-weight: 800; letter-spacing: 2px; }
+.form-a4-header p { color: #64748b; font-size: 11px; margin-top: 4px; text-transform: uppercase; }
+.form-a4-subtitle { background: #F5B041; color: #1e293b; padding: 8px 15px; border-radius: 5px; font-size: 12px; font-weight: 700; margin: 15px 0 10px; text-transform: uppercase; }
+.form-a4-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+.form-a4-field label { display: block; font-size: 11px; font-weight: 700; color: #0a2a44; text-transform: uppercase; margin-bottom: 4px; }
+.form-a4-field input, .form-a4-field select, .form-a4-field textarea { width: 100%; padding: 8px 10px; border: none; border-bottom: 2px solid #0a2a44; background: transparent; font-size: 13px; color: #1e293b; outline: none; }
+.form-a4-field input:focus, .form-a4-field select:focus, .form-a4-field textarea:focus { border-bottom-color: #C0392B; }
+.form-a4-checkbox-group { display: flex; gap: 20px; flex-wrap: wrap; margin: 10px 0; font-size: 12px; }
+.form-a4-checkbox-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; text-transform: none; color: #334155; }
+.form-a4-checkbox-group input[type="checkbox"], .form-a4-checkbox-group input[type="radio"] { width: 16px; height: 16px; accent-color: #C0392B; border: none; border-bottom: none; }
+.form-a4-signature { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #cbd5e1; }
+.form-a4-signature .sig-box { text-align: center; }
+.form-a4-signature .sig-box .sig-label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 40px; }
+.form-a4-signature .sig-box .sig-line { border-top: 1px solid #0a2a44; padding-top: 5px; font-size: 10px; color: #94a3b8; }
+.form-a4-footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; text-align: center; }
+
+/* MODAL */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 15px; overflow-y: auto; }
+.modal-overlay.active { display: flex; }
+.modal { background: #fff; border-radius: 14px; max-width: 700px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalIn 0.3s; }
+@keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-header { background: #F5B041; padding: 18px 25px; border-radius: 14px 14px 0 0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+.modal-header h3 { color: #1e293b; font-size: 16px; }
+.modal-header .close-btn { background: #C0392B; color: #fff; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 14px; }
+.modal-body { padding: 25px; }
+.modal-question { text-align: center; font-size: 18px; color: #0a2a44; font-weight: 600; margin-bottom: 25px; }
+.modal-options { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.modal-option { padding: 25px; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s; border: 2px solid #e2e8f0; background: #f8fafc; }
+.modal-option:active { transform: scale(0.98); }
+.modal-option.yes:active { border-color: #27ae60; background: #d5f5e3; }
+.modal-option.no:active { border-color: #C0392B; background: #fadbd8; }
+.modal-option i { font-size: 40px; margin-bottom: 12px; }
+.modal-option.yes i { color: #27ae60; }
+.modal-option.no i { color: #C0392B; }
+.modal-option h4 { color: #0a2a44; font-size: 16px; margin-bottom: 5px; }
+.modal-option p { color: #64748b; font-size: 12px; }
+
+/* TOAST */
+.toast { position: fixed; top: 20px; right: 20px; background: #fff; padding: 15px 25px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(450px); transition: transform 0.3s; z-index: 9999; font-size: 14px; max-width: 400px; }
+.toast.show { transform: translateX(0); }
+.toast-success { border-left: 4px solid #27ae60; color: #1e8449; }
+.toast-error { border-left: 4px solid #e74c3c; color: #922b21; }
+.toast-info { border-left: 4px solid #3498db; color: #1f618d; }
+.toast i { font-size: 20px; }
+
+/* TIMELINE */
+.timeline { display: flex; justify-content: space-between; margin: 20px 0; position: relative; }
+.timeline::before { content: ''; position: absolute; top: 20px; left: 0; right: 0; height: 2px; background: #e2e8f0; z-index: 0; }
+.tl-step { position: relative; z-index: 1; text-align: center; flex: 1; }
+.tl-step .tl-dot { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; color: #94a3b8; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 16px; border: 3px solid #fff; }
+.tl-step.completed .tl-dot { background: #27ae60; color: #fff; }
+.tl-step.active .tl-dot { background: #F5B041; color: #fff; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,176,65,0.7); } 50% { box-shadow: 0 0 0 10px rgba(245,176,65,0); } }
+.tl-step .tl-label { font-size: 11px; color: #64748b; font-weight: 600; }
+.tl-step.completed .tl-label { color: #1e8449; }
+.tl-step.active .tl-label { color: #C0392B; }
+
+/* DIVERS */
+.card { background: #fff; padding: 22px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.card h2 { color: #0a2a44; font-size: 16px; margin-bottom: 14px; border-bottom: 3px solid #F5B041; padding-bottom: 10px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 13px; color: #1e293b; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 11px 13px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 13px; background: #f8fafc; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #F5B041; outline: none; background: #fff; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: #F5B041; color: #1e293b; }
+.btn-red { background: #C0392B; color: #fff; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-excel { background: #217346; color: #fff; }
+.btn-pdf { background: #c0392b; color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+th { background: #f8fafc; color: #0a2a44; font-weight: 600; }
+.statut { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; display: inline-block; }
+.en_attente { background: #fef9e7; color: #b7950b; }
+.en_cours { background: #d6eaf8; color: #1f618d; }
+.approuve, .ouverte { background: #d5f5e3; color: #1e8449; }
+.refuse, .cloturee { background: #fadbd8; color: #922b21; }
+.tetik-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+.tetik-table th { background: #F5B041; color: #1e293b; padding: 9px; border: 1px solid #d4ac0d; font-size: 11px; }
+.tetik-table td { border: 1px solid #e2e8f0; padding: 4px; }
+.tetik-table input { width: 100%; border: none; padding: 7px; background: transparent; font-size: 12px; outline: none; }
+.tetik-table .total-input { font-weight: 700; color: #C0392B; }
+.btn-add-row { background: #27ae60; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; margin-top: 10px; }
+.notification { background: #d5f5e3; border-left: 4px solid #27ae60; padding: 15px 18px; border-radius: 10px; margin-bottom: 18px; font-size: 13px; color: #1e8449; display: none; }
+.notification.show { display: block; }
+.hamburger { display: none; background: none; border: none; font-size: 22px; color: #0a2a44; cursor: pointer; }
+
+/* GPS SIMPLIFIÉ */
+.gps-box { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); padding: 20px; border-radius: 12px; border: 2px dashed #0ea5e9; text-align: center; }
+.gps-box .gps-icon { font-size: 40px; color: #0ea5e9; margin-bottom: 10px; }
+.gps-box h4 { color: #0a2a44; font-size: 15px; margin-bottom: 8px; }
+.gps-box p { color: #64748b; font-size: 12px; margin-bottom: 15px; }
+.gps-box .btn-gps { background: #0ea5e9; color: #fff; border: none; padding: 14px 30px; border-radius: 30px; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 4px 15px rgba(14,165,233,0.3); transition: all 0.2s; }
+.gps-box .btn-gps:active { transform: scale(0.97); }
+.gps-box .btn-gps:disabled { background: #94a3b8; box-shadow: none; }
+.gps-result { display: none; margin-top: 15px; padding: 12px; background: #fff; border-radius: 8px; font-size: 12px; text-align: left; }
+.gps-result.show { display: block; }
+.gps-result p { margin-bottom: 5px; color: #334155; }
+.gps-result p strong { color: #0a2a44; }
+#map-credit { width: 100%; height: 250px; border-radius: 10px; margin-top: 15px; display: none; border: 2px solid #e2e8f0; }
+#map-credit.active { display: block; }
+
+/* FICHIERS */
+.file-drop { border: 2px dashed #F5B041; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fef9e7; }
+.file-drop:active { background: #fef3c7; }
+.file-drop i { font-size: 30px; color: #F5B041; margin-bottom: 8px; }
+.file-drop p { font-size: 12px; color: #7d6608; }
+.file-drop input[type="file"] { display: none; }
+.file-list { margin-top: 10px; font-size: 12px; }
+.file-list .file-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main-content { margin-left: 0; }
+    .hamburger { display: block; }
+    .header { padding: 12px 15px; }
+    .page { padding: 15px; }
+    .epargne-block { grid-template-columns: 1fr; padding: 20px; }
+    .form-a4 { padding: 20px; }
+    .form-a4-grid { grid-template-columns: 1fr; }
+    .modal-options { grid-template-columns: 1fr; }
+    .slide-content h1 { font-size: 22px; }
+    .slide-content p { font-size: 13px; }
+    .slide-content i { font-size: 40px; }
+    .accueil-hero { height: 50vh; min-height: 280px; }
+    .page h1 { font-size: 18px; }
+    .header h2 { font-size: 13px; }
+    .header .name { font-size: 12px; }
+}
+@media (max-width: 480px) {
+    .slide-content h1 { font-size: 18px; }
+    .welcome-block h2 { font-size: 18px; }
+    .welcome-block .slogan { font-size: 15px; }
+    .credit-types { grid-template-columns: 1fr; }
+    .form-a4-signature { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+    <div class="logo">
+        <img src="../img/logo-smmec.svg" alt="SMMEC"
+             onerror="this.onerror=null; this.src='../img/logo-smmec.png';" />
+    </div>
+    <div class="lang-selector">
+        <button class="lang-btn active" onclick="switchLang('fr', this)">🇫🇷 FR</button>
+        <button class="lang-btn" onclick="switchLang('en', this)">🇬🇧 EN</button>
+        <button class="lang-btn" onclick="switchLang('mg', this)">🇲🇬 MG</button>
+    </div>
+    <ul class="menu">
+        <li class="active" data-page="accueil"><i class="fas fa-home"></i> <span data-i18n="accueil">Accueil</span></li>
+        <li data-page="epargne"><i class="fas fa-piggy-bank"></i> <span data-i18n="epargne">Compte Épargne</span></li>
+        <li data-page="credit"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="credit">Obtenir un Crédit</span></li>
+        <li data-page="simulateur"><i class="fas fa-calculator"></i> <span data-i18n="simulateur">Simulateur</span></li>
+        <li data-page="harena"><i class="fas fa-heartbeat"></i> <span data-i18n="harena">Mutuelle HARENA</span></li>
+        <li data-page="flash"><i class="fas fa-bolt"></i> <span data-i18n="flash">SMMEC Flash</span></li>
+        <li data-page="actualites"><i class="fas fa-newspaper"></i> <span data-i18n="actualites">Actualités</span></li>
+        <li data-page="implantations"><i class="fas fa-map-marker-alt"></i> <span data-i18n="implantations">Implantations</span></li>
+        <li data-page="contact"><i class="fas fa-envelope"></i> <span data-i18n="contact">Nous Contacter</span></li>
+        <li data-page="mes-credits"><i class="fas fa-list"></i> <span data-i18n="mesCredits">Mes Crédits</span></li>
+        <li data-page="mes-epargnes"><i class="fas fa-wallet"></i> <span data-i18n="mesEpargnes">Mes Épargnes</span></li>
+    </ul>
+    <div class="sidebar-footer">
+        <div id="qrcode"></div>
+        <div style="line-height:1.5; font-size:9px;">
+            <strong>Agence Ambositra</strong><br />
+            Lot 13 C 23 Est Vinany<br />
+            📞 033 37 335 18<br />
+            📧 smmec@smmec.mg
+        </div>
+    </div>
+</nav>
+
+<!-- CONTENU -->
+<main class="main-content">
+    <header class="header">
+        <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h2>SMMEC <span data-i18n="espaceClient">Espace Client</span></h2>
+        <div class="user-info">
+            <button class="mode-btn" onclick="toggleDark()" title="Mode sombre">🌙</button>
+            <div class="avatar" id="avatar">--</div>
+            <div>
+                <div class="name" id="user-name">Chargement...</div>
+                <div class="role" data-i18n="membre">Membre</div>
+            </div>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </header>
+
+    <!-- ACCUEIL -->
+    <div id="page-accueil" class="page active">
+        <div class="accueil-hero">
+            <div class="slider-container" id="slider">
+                <div class="slide slide-1">
+                    <div class="slide-content">
+                        <i class="fas fa-piggy-bank"></i>
+                        <h1>Bienvenue à la SMMEC</h1>
+                        <p>Votre partenaire financier de confiance à Madagascar depuis plus de 20 ans.</p>
+                    </div>
+                </div>
+                <div class="slide slide-2">
+                    <div class="slide-content">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        <h1>Des crédits adaptés à vos besoins</h1>
+                        <p>Classique, agricole, commercial, équipement, financement vert...</p>
+                    </div>
+                </div>
+                <div class="slide slide-3">
+                    <div class="slide-content">
+                        <i class="fas fa-users"></i>
+                        <h1>Rejoignez plus de 300 000 membres</h1>
+                        <p>Une institution solidaire dans 14 régions de Madagascar.</p>
+                    </div>
+                </div>
+                <div class="slide slide-4">
+                    <div class="slide-content">
+                        <i class="fas fa-chart-line"></i>
+                        <h1>Épargnez pour votre avenir</h1>
+                        <p>PEJE, Retraite, Projet, Épargne à terme jusqu'à 7%.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slider-dots" id="dots">
+                <span class="active" onclick="goToSlide(0)"></span>
+                <span onclick="goToSlide(1)"></span>
+                <span onclick="goToSlide(2)"></span>
+                <span onclick="goToSlide(3)"></span>
+            </div>
+        </div>
+
+        <div class="welcome-block">
+            <h2>👋 Bienvenue dans votre espace membre</h2>
+            <p>Gérez vos demandes de crédit et d'épargne en toute simplicité.</p>
+            <div class="slogan">"Vola tsara tantana, hoavy milamina"</div>
+            <p style="margin-top:8px; font-size:12px; color:#94a3b8;">(Une gestion saine de l'argent, un avenir serein)</p>
+        </div>
+    </div>
+
+    <!-- ÉPARGNE -->
+    <div id="page-epargne" class="page">
+        <h1><i class="fas fa-piggy-bank" style="color:#F5B041;"></i> <span data-i18n="epargne">Compte Épargne</span></h1>
+        <p style="color:#64748b; font-size:13px; margin-bottom:15px;">⚠️ Un seul compte épargne par membre.</p>
+        <div class="epargne-container" id="epargne-list"></div>
+    </div>
+
+    <!-- CRÉDIT -->
+    <div id="page-credit" class="page">
+        <h1><i class="fas fa-hand-holding-usd" style="color:#F5B041;"></i> <span data-i18n="credit">Obtenir un Crédit</span></h1>
+        <div class="credit-info-block">
+            <h3>📋 Dossiers à fournir</h3>
+            <ul>
+                <li>Sary Tapaka : Mpindrana 1, Vady 1</li>
+                <li>Photocopie CIN : Mpindrana 1, Vady 1</li>
+                <li>Fanamarinam-ponenana</li>
+                <li>Taratasin'ny SMMEC (en agence)</li>
+                <li>Taratasy Fanamarinana ny asa</li>
+                <li>Taratasy Fanamarinana ny Antoka</li>
+                <li>Sary ny entana atolotra</li>
+                <li>Taratasy fanamarinana maha mpivady</li>
+                <li>Papier Chemise BEIGE + valopy</li>
+            </ul>
+        </div>
+        <h3 style="color:#0a2a44; margin-bottom:12px;">💰 Types de crédit</h3>
+        <div class="credit-types" id="credit-types-list"></div>
+        <button class="btn btn-success" onclick="ouvrirModalCredit()" style="width:100%; padding:16px; margin-top:20px; font-size:15px;">
+            <i class="fas fa-hand-holding-usd"></i> Faire une demande de crédit
+        </button>
+    </div>
+
+    <!-- SIMULATEUR -->
+    <div id="page-simulateur" class="page">
+        <h1 style="justify-content:center;"><i class="fas fa-calculator" style="color:#F5B041;"></i> <span data-i18n="simulateur">Simulateur</span></h1>
+        <div class="card" style="max-width:600px; margin:40px auto;">
+            <h2 style="text-align:center;">🧮 Simulateur</h2>
+            <div class="form-group"><label>Montant (Ar)</label><input type="number" id="sim-montant" placeholder="Ex: 5000000" /></div>
+            <div class="form-group"><label>Durée (mois)</label><input type="number" id="sim-duree" placeholder="Ex: 12" /></div>
+            <div class="form-group"><label>Taux annuel (%)</label><input type="number" id="sim-taux" value="8" step="0.5" /></div>
+            <button class="btn btn-primary" onclick="simuler()" style="width:100%;">Simuler</button>
+            <div id="sim-resultat" style="display:none; margin-top:20px; padding:20px; background:#f8fafc; border-radius:10px;">
+                <p><strong>Mensualité :</strong> <span id="sim-mensualite" style="color:#C0392B; font-size:22px; font-weight:700;"></span></p>
+                <p style="margin-top:8px;"><strong>Total :</strong> <span id="sim-total"></span></p>
+                <p style="margin-top:8px;"><strong>Intérêts :</strong> <span id="sim-interets"></span></p>
+                <canvas id="chart-amort" style="margin-top:20px; max-height:200px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- HARENA -->
+    <!-- SECTION HARENA - VIDÉO -->
+<div id="page-harena" class="page">
+    <h1><i class="fas fa-heartbeat" style="color:#F5B041;"></i> Mutuelle de Santé HARENA</h1>
+    
+    <video controls 
+           width="100%" 
+           style="max-width:900px; margin:20px auto; display:block; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.15);"
+           poster="../img/harena-poster.jpg">
+        <source src="../videos/harena.mp4" type="video/mp4">
+        Votre navigateur ne supporte pas la vidéo.
+    </video>
+    
+    <p style="text-align:center; color:#64748b; font-size:13px; margin-top:15px;">
+        📹 Vidéo de présentation de la Mutuelle de Santé HARENA
+    </p>
+</div>
+    <!-- FLASH -->
+    <!-- SECTION FLASH - VIDÉO -->
+<div id="page-flash" class="page">
+    <h1><i class="fas fa-bolt" style="color:#F5B041;"></i> SMMEC Flash</h1>
+    
+    <video controls 
+           width="100%" 
+           style="max-width:900px; margin:20px auto; display:block; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.15);"
+           poster="../img/flash-poster.jpg">
+        <source src="../videos/flash.mp4" type="video/mp4">
+        Votre navigateur ne supporte pas la vidéo.
+    </video>
+    
+    <p style="text-align:center; color:#64748b; font-size:13px; margin-top:15px;">
+        📹 Vidéo explicative du service SMMEC Flash
+    </p>
+</div>
+
+    <!-- ACTUALITÉS -->
+    <div id="page-actualites" class="page">
+        <h1><i class="fas fa-newspaper" style="color:#F5B041;"></i> <span data-i18n="actualites">Actualités</span></h1>
+        <div class="card" style="display:grid; grid-template-columns: 1fr 1fr; gap:25px; align-items:center;">
+            <div>
+                <span style="background:#C0392B; color:#fff; padding:5px 14px; border-radius:20px; font-size:11px;">📢 PARTENARIAT MADAUTO</span>
+                <h2 style="margin-top:12px; border:none; padding:0; font-size:20px;">Crédit Bajajy TVS – Phase 4</h2>
+                <p style="color:#64748b; line-height:1.7; margin-top:10px; font-size:13px;">
+                    La SMMEC, en partenariat avec Madauto, propose un crédit spécial pour l'acquisition de
+                    <strong>Bajajy TVS Phase 4</strong> et de groupes électrogènes.
+                </p>
+                <p style="color:#64748b; line-height:1.7; margin-top:10px; font-size:13px;">
+                    ✅ Remboursement 12 à 36 mois<br />
+                    ✅ Taux préférentiel<br />
+                    ✅ Facilitation d'accès
+                </p>
+            </div>
+            <div style="height:280px; background:linear-gradient(135deg,#C0392B,#F5B041); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:80px;">🏍️</div>
+        </div>
+    </div>
+
+    <!-- IMPLANTATIONS -->
+    <div id="page-implantations" class="page">
+        <h1><i class="fas fa-map-marker-alt" style="color:#F5B041;"></i> <span data-i18n="implantations">Implantations</span></h1>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px;">
+            <div class="card"><strong>🏙️ Antananarivo</strong><br /><small>Analakely</small></div>
+            <div class="card"><strong>🌳 Ambositra</strong><br /><small>Amoron'i Mania</small></div>
+            <div class="card"><strong>☂️ Fianarantsoa</strong><br /><small>Haute Matsiatra</small></div>
+            <div class="card"><strong>🚢 Toamasina</strong><br /><small>Atsinanana</small></div>
+            <div class="card"><strong>⛰️ Antsirabe</strong><br /><small>Vakinankaratra</small></div>
+            <div class="card"><strong>🌍 Mahajanga</strong><br /><small>Boeny</small></div>
+        </div>
+    </div>
+
+    <!-- CONTACT -->
+    <div id="page-contact" class="page">
+        <h1><i class="fas fa-envelope" style="color:#F5B041;"></i> <span data-i18n="contact">Nous Contacter</span></h1>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px;">
+            <div class="card"><strong>📞 Téléphone</strong><br />033 37 335 18</div>
+            <div class="card"><strong>📧 Email</strong><br />smmec@smmec.mg</div>
+            <div class="card"><strong>🌐 Site</strong><br />www.smmec.mg</div>
+            <div class="card"><strong>📍 Adresse</strong><br />Lot 13 C 23 Est Vinany Ambositra</div>
+            <div class="card"><strong>🕐 Horaires</strong><br />Lun - Ven : 8h - 16h</div>
+        </div>
+    </div>
+
+    <!-- MES CRÉDITS -->
+    <div id="page-mes-credits" class="page">
+        <h1><i class="fas fa-list" style="color:#F5B041;"></i> <span data-i18n="mesCredits">Mes Crédits</span></h1>
+        <div class="notification" id="notif-approval">
+            🎉 <strong>Félicitations !</strong> Votre demande a été approuvée. Vous recevrez votre carnet de membre auprès de l'agence SMMEC la plus proche.
+        </div>
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h2 style="border:none; padding:0;">Historique</h2>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-excel" onclick="exporterExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn btn-pdf" onclick="exporterPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>ID</th><th>Type</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead>
+                <tbody id="tbody-credits"><tr><td colspan="5" style="text-align:center;">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+        <div class="card" id="timeline-card" style="display:none;">
+            <h2>📊 Suivi</h2>
+            <div class="timeline">
+                <div class="tl-step completed"><div class="tl-dot"><i class="fas fa-check"></i></div><div class="tl-label">Demande</div></div>
+                <div class="tl-step completed"><div class="tl-dot"><i class="fas fa-search"></i></div><div class="tl-label">Instruction</div></div>
+                <div class="tl-step active"><div class="tl-dot"><i class="fas fa-home"></i></div><div class="tl-label">Visite</div></div>
+                <div class="tl-step"><div class="tl-dot"><i class="fas fa-check-double"></i></div><div class="tl-label">Approbation</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MES ÉPARGNES -->
+    <div id="page-mes-epargnes" class="page">
+        <h1><i class="fas fa-wallet" style="color:#F5B041;"></i> <span data-i18n="mesEpargnes">Mes Épargnes</span></h1>
+        <div class="card">
+            <table>
+                <thead><tr><th>ID</th><th>Type</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead>
+                <tbody id="tbody-epargnes"><tr><td colspan="5" style="text-align:center;">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- MODAL : ÊTES-VOUS MEMBRE ? -->
+<div class="modal-overlay" id="modal-membre">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-question-circle"></i> Question préalable</h3>
+            <button class="close-btn" onclick="fermerModal('modal-membre')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-question">Êtes-vous déjà membre de la SMMEC ?</div>
+            <div class="modal-options">
+                <div class="modal-option yes" onclick="choixMembre(true)">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>OUI</h4>
+                    <p>J'ai déjà un compte SMMEC</p>
+                </div>
+                <div class="modal-option no" onclick="choixMembre(false)">
+                    <i class="fas fa-times-circle"></i>
+                    <h4>NON</h4>
+                    <p>Je ne suis pas encore membre</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL : FORMULAIRE ÉPARGNE A4 -->
+<div class="modal-overlay" id="modal-epargne-form">
+    <div class="modal" style="max-width:850px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-alt"></i> Formulaire d'épargne</h3>
+            <button class="close-btn" onclick="fermerModal('modal-epargne-form')">✕</button>
+        </div>
+        <div class="modal-body" style="background:#f1f5f9; padding:15px;">
+            <div class="form-a4">
+                <div class="form-a4-header">
+                    <h2>SMMEC</h2>
+                    <p>Demande d'ouverture de compte épargne</p>
+                    <p style="margin-top:6px; font-size:11px; color:#C0392B; font-weight:700;">CAISSE : AMBOSITRA</p>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>FOLIO</label><input type="text" id="fol-epargne" placeholder="Ex: 00123" /></div>
+                    <div class="form-a4-field"><label>Date</label><input type="date" id="date-epargne" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Anarana</label><input type="text" id="nom-epargne" readonly /></div>
+                    <div class="form-a4-field"><label>Adiresy</label><input type="text" id="adresse-epargne" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Téléphone</label><input type="tel" id="tel-epargne" readonly /></div>
+                    <div class="form-a4-field"><label>CIN</label><input type="text" id="cin-epargne" /></div>
+                </div>
+                <div class="form-a4-subtitle">💰 Type d'épargne</div>
+                <div class="form-a4-field"><input type="text" id="type-epargne-a4" readonly style="font-weight:700; color:#C0392B;" /></div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Montant initial (Ar)</label><input type="number" id="montant-epargne-a4" /></div>
+                    <div class="form-a4-field"><label>Versement mensuel (Ar)</label><input type="number" id="versement-epargne-a4" /></div>
+                </div>
+                <div class="form-a4-field"><label>Objectif</label><textarea id="objectif-epargne-a4" rows="2"></textarea></div>
+
+                <div class="form-a4-subtitle">📎 Pièces jointes</div>
+                <div class="file-drop" onclick="document.getElementById('epargne-files').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Cliquez pour ajouter des fichiers (CIN, Photo, etc.)</p>
+                    <input type="file" id="epargne-files" multiple accept="image/*,.pdf,.doc,.docx" onchange="afficherFichiers('epargne-files', 'epargne-files-list')" />
+                </div>
+                <div class="file-list" id="epargne-files-list"></div>
+
+                <div class="form-a4-signature">
+                    <div class="sig-box"><div class="sig-label">Sonin'ny mpikambana</div><div class="sig-line">(Signature)</div></div>
+                    <div class="sig-box"><div class="sig-label">Fanamarinan'ny SMMEC</div><div class="sig-line">(Cachet)</div></div>
+                </div>
+                <div class="form-a4-footer">SMMEC — Agence FANANTENANA — Lot 13 C 23 Est Vinany Ambositra — 033 37 335 18</div>
+            </div>
+            <button class="btn btn-success" onclick="soumettreEpargneA4()" style="width:100%; padding:15px; margin-top:15px;">
+                <i class="fas fa-paper-plane"></i> Soumettre ma demande
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL : INSCRIPTION -->
+<div class="modal-overlay" id="modal-inscription">
+    <div class="modal" style="max-width:850px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Inscription nouveau membre</h3>
+            <button class="close-btn" onclick="fermerModal('modal-inscription')">✕</button>
+        </div>
+        <div class="modal-body" style="background:#f1f5f9; padding:15px;">
+            <div class="form-a4">
+                <div class="form-a4-header">
+                    <h2>SMMEC</h2>
+                    <p>Fiche d'adhésion nouveau membre</p>
+                    <p style="margin-top:6px; font-size:11px; color:#C0392B; font-weight:700;">CAISSE : AMBOSITRA</p>
+                </div>
+                <div class="form-a4-subtitle">👤 Informations personnelles</div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Anarana (Nom) *</label><input type="text" id="ins-nom" /></div>
+                    <div class="form-a4-field"><label>Fanampin'anarana (Prénom) *</label><input type="text" id="ins-prenom" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Date de naissance *</label><input type="date" id="ins-datenaissance" /></div>
+                    <div class="form-a4-field"><label>Sexe *</label>
+                        <select id="ins-sexe"><option value="">-- Choisir --</option><option value="M">Masculin</option><option value="F">Féminin</option></select>
+                    </div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>CIN *</label><input type="text" id="ins-cin" /></div>
+                    <div class="form-a4-field"><label>Téléphone *</label><input type="tel" id="ins-tel" /></div>
+                </div>
+                <div class="form-a4-field"><label>Adiresy *</label><input type="text" id="ins-adresse" /></div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Profession *</label><input type="text" id="ins-profession" /></div>
+                    <div class="form-a4-field"><label>Situation matrimoniale</label>
+                        <select id="ins-situation"><option value="">-- Choisir --</option><option>Célibataire</option><option>Marié(e)</option><option>Divorcé(e)</option><option>Veuf(ve)</option></select>
+                    </div>
+                </div>
+                <div class="form-a4-field"><label>Email</label><input type="email" id="ins-email" /></div>
+
+                <div class="form-a4-subtitle">📎 Pièces jointes</div>
+                <div class="file-drop" onclick="document.getElementById('inscription-files').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Ajoutez CIN, Photo, Justificatif de domicile...</p>
+                    <input type="file" id="inscription-files" multiple accept="image/*,.pdf,.doc,.docx" onchange="afficherFichiers('inscription-files', 'inscription-files-list')" />
+                </div>
+                <div class="file-list" id="inscription-files-list"></div>
+
+                <div class="form-a4-signature">
+                    <div class="sig-box"><div class="sig-label">Sonin'ny mpikambana</div><div class="sig-line">(Signature)</div></div>
+                    <div class="sig-box"><div class="sig-label">Fanamarinan'ny SMMEC</div><div class="sig-line">(Cachet)</div></div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="soumettreInscription()" style="width:100%; padding:15px; margin-top:15px;">
+                <i class="fas fa-user-plus"></i> Valider mon inscription
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL : FORMULAIRE CRÉDIT A4 -->
+<div class="modal-overlay" id="modal-credit-form">
+    <div class="modal" style="max-width:900px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-invoice"></i> Formulaire de crédit</h3>
+            <button class="close-btn" onclick="fermerModal('modal-credit-form')">✕</button>
+        </div>
+        <div class="modal-body" style="background:#f1f5f9; padding:15px;">
+            <div class="form-a4">
+                <div class="form-a4-header">
+                    <h2>SMMEC</h2>
+                    <p>Demande de crédit</p>
+                    <p style="margin-top:6px; font-size:11px; color:#C0392B; font-weight:700;">CAISSE : AMBOSITRA</p>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>FOLIO</label><input type="text" id="fol-credit" /></div>
+                    <div class="form-a4-field"><label>Date</label><input type="date" id="date-credit" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Anarana</label><input type="text" id="nom-credit" readonly /></div>
+                    <div class="form-a4-field"><label>Adiresy</label><input type="text" id="adresse-credit" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Téléphone</label><input type="tel" id="tel-credit" readonly /></div>
+                    <div class="form-a4-field"><label>CIN</label><input type="text" id="cin-credit" /></div>
+                </div>
+
+                <div class="form-a4-subtitle">💰 Détails du crédit</div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Type de crédit</label><input type="text" id="type-credit-a4" readonly /></div>
+                    <div class="form-a4-field"><label>Montant (Ar)</label><input type="number" id="montant-credit-a4" /></div>
+                </div>
+                <div class="form-a4-grid">
+                    <div class="form-a4-field"><label>Durée (mois)</label><input type="number" id="duree-credit-a4" /></div>
+                    <div class="form-a4-field"><label>Mensualité (Ar)</label><input type="text" id="mensualite-credit-a4" readonly /></div>
+                </div>
+                <div class="form-a4-field"><label>Motif</label><textarea id="motif-credit-a4" rows="2"></textarea></div>
+
+                <div class="form-a4-subtitle">📊 TETIK'ASA</div>
+                <table class="tetik-table">
+                    <thead><tr><th>Zavatra</th><th>Fandrefesana</th><th>Isany</th><th>Vidin'ny</th><th>Fitambarany</th></tr></thead>
+                    <tbody id="tetik-tbody">
+                        <tr>
+                            <td><input type="text" /></td><td><input type="text" /></td>
+                            <td><input type="number" class="qty" oninput="calcLigne(this)" /></td>
+                            <td><input type="number" class="pu" oninput="calcLigne(this)" /></td>
+                            <td><input type="number" class="total total-input" readonly /></td>
+                        </tr>
+                    </tbody>
+                    <tfoot><tr style="background:#fef9e7;"><td colspan="4" style="text-align:right; padding:8px; font-weight:700;">TOTALY :</td><td><input type="number" id="tetik-total" readonly class="total-input" /></td></tr></tfoot>
+                </table>
+                <button class="btn-add-row" onclick="ajouterLigne()" type="button">+ Ajouter</button>
+
+                <!-- ==========================================
+                     SECTION GPS : 2 OPTIONS DE LOCALISATION
+                     ========================================== -->
+                <div class="form-a4-subtitle">📍 Localisation (Fanoroana ny lalana)</div>
+
+                <p style="color:#64748b; font-size:12px; margin-bottom:15px; font-style:italic;">
+                    Fanoroana ny lalana misy ny mpikambana.
+                    <br />
+                    <strong style="color:#C0392B;">Raha tsy mandeha ny GPS, tsindrio ny sarintany (carte) mba hamaritana ny toerana misy anao.</strong>
+                </p>
+
+                <div class="gps-box">
+                    <div class="gps-icon"><i class="fas fa-map-marked-alt"></i></div>
+                    <h4>Où habitez-vous ?</h4>
+                    <p>Option 1 : Localisation automatique par GPS</p>
+                    <button type="button" class="btn-gps" id="btn-locate" onclick="demanderPosition()">
+                        <i class="fas fa-crosshairs"></i> Localiser ma position (GPS)
+                    </button>
+
+                    <p style="margin-top:15px;">Option 2 : Indiquer ma position manuellement</p>
+                    <button type="button" class="btn btn-primary" onclick="activerClicCarte()" style="padding:14px 30px; border-radius:30px;">
+                        <i class="fas fa-hand-pointer"></i> Indiquer ma position sur la carte
+                    </button>
+
+                    <div class="gps-result" id="gps-result">
+                        <p><strong>📍 Adresse :</strong> <span id="credit-address">-</span></p>
+                        <p><strong>🌍 Coordonnées :</strong> <span id="credit-lat">-</span>, <span id="credit-lng">-</span></p>
+                    </div>
+                    <div id="map-credit"></div>
+                    <div class="position-box" id="position-status" style="margin-top:15px;">
+                        <i class="fas fa-info-circle" style="color:#F5B041;"></i>
+                        Tsy mbola voamarina ny toerana misy anao.
+                    </div>
+                </div>
+
+                <div class="form-a4-subtitle">📎 Pièces jointes</div>
+                <div class="file-drop" onclick="document.getElementById('credit-files').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Ajoutez CIN, Photos, Justificatifs...</p>
+                    <input type="file" id="credit-files" multiple accept="image/*,.pdf,.doc,.docx" onchange="afficherFichiers('credit-files', 'credit-files-list')" />
+                </div>
+                <div class="file-list" id="credit-files-list"></div>
+
+                <div class="form-a4-signature">
+                    <div class="sig-box"><div class="sig-label">Sonin'ny mpikambana</div><div class="sig-line">(Signature)</div></div>
+                    <div class="sig-box"><div class="sig-label">Fanamarinan'ny SMMEC</div><div class="sig-line">(Cachet)</div></div>
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="soumettreCreditA4()" style="width:100%; padding:15px; margin-top:15px;">
+                <i class="fas fa-paper-plane"></i> Soumettre ma demande
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL : MESSAGE FINAL -->
+<div class="modal-overlay" id="modal-message">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header" style="background:#27ae60;">
+            <h3 style="color:#fff;"><i class="fas fa-check-circle"></i> Succès</h3>
+            <button class="close-btn" onclick="fermerModal('modal-message')">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+            <i class="fas fa-book" style="font-size:60px; color:#F5B041; margin-bottom:15px;"></i>
+            <h3 style="color:#0a2a44; margin-bottom:12px;" id="modal-message-title">Félicitations !</h3>
+            <p style="color:#64748b; line-height:1.7;" id="modal-message-text"></p>
+            <button class="btn btn-success" onclick="fermerModal('modal-message')" style="margin-top:20px; width:100%;">J'ai compris</button>
+        </div>
+    </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script>
+// SÉCURITÉ
+if (!requireAuth('membre')) throw new Error('Redirection');
+const user = getUser();
+document.getElementById('user-name').textContent = `${user.prenom} ${user.nom}`;
+document.getElementById('avatar').textContent = (user.prenom[0] + user.nom[0]).toUpperCase();
+
+// PWA - Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('../service-worker.js')
+        .then(() => console.log('✅ Service Worker enregistré'))
+        .catch(err => console.log('SW error:', err));
+}
+
+// QR CODE
+new QRCode(document.getElementById("qrcode"), {
+    text: "https://www.smmec.mg", width: 70, height: 70,
+    colorDark: "#0a2a44", colorLight: "#ffffff"
+});
+
+// DARK MODE
+if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+function toggleDark() {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+}
+
+// SOCKET.IO
+const socket = io('http://localhost:5000');
+socket.on('connect', () => {
+    console.log('🔌 Socket connecté');
+    socket.emit('join-user', user.id_utilisateur);
+});
+socket.on('notif', (data) => {
+    console.log('📬 Notif :', data);
+    showToast(data.message, data.statut === 'refuse' ? 'error' : 'success');
+    if (data.statut === 'approuve') {
+        document.getElementById('modal-message-title').textContent = '🎉 Félicitations !';
+        document.getElementById('modal-message-text').innerHTML = `
+            <strong>Votre demande a été approuvée !</strong><br /><br />
+            📖 Récupérez votre carnet de membre auprès de l'agence SMMEC la plus proche.
+        `;
+        document.getElementById('modal-message').classList.add('active');
+        chargerCredits();
+    } else if (data.statut === 'ouverte') {
+        document.getElementById('modal-message-title').textContent = '🎉 Compte ouvert !';
+        document.getElementById('modal-message-text').innerHTML = `
+            <strong>Votre compte épargne est ouvert !</strong><br /><br />
+            📖 Récupérez votre carnet d'épargne à l'agence SMMEC la plus proche.
+        `;
+        document.getElementById('modal-message').classList.add('active');
+        chargerEpargnes();
+    } else {
+        chargerCredits();
+        chargerEpargnes();
+    }
+});
+
+// TOAST
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'info-circle' };
+    toast.innerHTML = `<i class="fas fa-${icons[type]}"></i><span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// LANGUE
+const translations = {
+    fr: { accueil:'Accueil', epargne:'Compte Épargne', credit:'Obtenir un Crédit', simulateur:'Simulateur', harena:'Mutuelle HARENA', flash:'SMMEC Flash', actualites:'Actualités', implantations:'Implantations', contact:'Nous Contacter', mesCredits:'Mes Crédits', mesEpargnes:'Mes Épargnes', espaceClient:'Espace Client', membre:'Membre' },
+    en: { accueil:'Home', epargne:'Savings', credit:'Get a Loan', simulateur:'Simulator', harena:'HARENA Health', flash:'SMMEC Flash', actualites:'News', implantations:'Locations', contact:'Contact', mesCredits:'My Loans', mesEpargnes:'My Savings', espaceClient:'Client Area', membre:'Member' },
+    mg: { accueil:'Fandraisana', epargne:'Tahirim-bola', credit:'Fangatahana Credit', simulateur:'Kajy', harena:'HARENA', flash:'SMMEC Flash', actualites:'Vaovao', implantations:'Toerana', contact:'Fifandraisana', mesCredits:'Ny Credit-ko', mesEpargnes:'Ny Tahiriko', espaceClient:'Sehatry ny Mpikambana', membre:'Mpikambana' }
+};
+function switchLang(lang, btn) {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = translations[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (t[k]) el.textContent = t[k];
+    });
+}
+
+// NAVIGATION
+document.querySelectorAll('.menu li').forEach(item => {
+    item.addEventListener('click', function() {
+        const id = this.getAttribute('data-page');
+        document.querySelectorAll('.menu li').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('page-' + id).classList.add('active');
+        if (id === 'mes-credits') chargerCredits();
+        if (id === 'mes-epargnes') chargerEpargnes();
+        if (id === 'epargne') chargerTypesEpargne();
+        if (id === 'credit') chargerTypesCredit();
+        if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open');
+    });
+});
+
+// CARROUSEL
+let currentSlide = 0;
+function goToSlide(n) {
+    currentSlide = n;
+    document.getElementById('slider').style.transform = `translateX(-${n * 100}%)`;
+    document.querySelectorAll('#dots span').forEach((d, i) => d.classList.toggle('active', i === n));
+}
+setInterval(() => goToSlide((currentSlide + 1) % 4), 4000);
+
+// TYPES ÉPARGNE
+const TYPES_EPARGNE = [
+    { code: 'TAHIRY TSOTRA', nom: 'Épargne à vue', description: 'Compte classique, dépôts et retraits à tout moment.', min: '0 Ar', taux: '0%', features: ['Retraits à tout moment', 'Aucun minimum', 'Flexibilité maximale'] },
+    { code: 'TAHIRY VOAFANTINA', nom: 'Épargne spécialisée', description: 'Compte avec solde minimum.', min: '100 000 Ar', taux: '3%', features: ['Utilisation libre', 'Intérêts 3%', 'Minimum : 100 000 Ar'] },
+    { code: 'TAHIRY MAHARITRA', nom: 'Épargne à terme', description: 'Le meilleur taux d\'intérêt (7%).', min: '200 000 Ar', taux: '7%', features: ['Zanabola 7%', 'Intérêts élevés', 'Minimum : 200 000 Ar'] },
+    { code: 'PEJE', nom: 'Plan Épargne Jeune', description: 'Pour les moins de 35 ans.', min: '2 000 Ar/mois', taux: '6%', features: ['Moins de 35 ans', 'Formation', 'Intérêts 6%'] },
+    { code: 'TSINJO FAHANTERANA', nom: 'Épargne Retraite', description: 'Préparez votre retraite.', min: '10 000 Ar/mois', taux: '6%', features: ['Préparation retraite', 'Intérêts 6%', '10 000 Ar/mois'] },
+    { code: 'TAHIRY TETIKASA', nom: 'Épargne Projet', description: 'Pour financer un projet.', min: '20 000 Ar/mois', taux: '6%', features: ['Projet défini', 'Intérêts 6%', '20 000 Ar/mois'] }
+];
+
+function chargerTypesEpargne() {
+    document.getElementById('epargne-list').innerHTML = TYPES_EPARGNE.map(t => `
+        <div class="epargne-block">
+            <div>
+                <div class="code">${t.code}</div>
+                <h3>${t.nom}</h3>
+                <div class="description">${t.description}</div>
+                <ul class="features">${t.features.map(f => `<li><i class="fas fa-check-circle"></i> ${f}</li>`).join('')}</ul>
+            </div>
+            <div>
+                <div class="info-grid">
+                    <div class="info-item"><div class="label">Minimum</div><div class="value">${t.min}</div></div>
+                    <div class="info-item"><div class="label">Taux</div><div class="value">${t.taux}</div></div>
+                </div>
+                <button class="btn-create" onclick="ouvrirModalEpargne('${t.code}')"><i class="fas fa-plus-circle"></i> Créer mon compte</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// TYPES CRÉDIT
+const TYPES_CREDIT = [
+    { nom: 'Crédit Classique', taux: '8%', desc: 'Particuliers et entrepreneurs. Jusqu\'à 300M Ar.' },
+    { nom: 'Crédit Agricole', taux: '5%', desc: 'Campagnes agricoles et équipements.' },
+    { nom: 'Crédit Commercial', taux: '7.5%', desc: 'Commerçants. 24 mois max.' },
+    { nom: 'Crédit Équipement', taux: '6.5%', desc: 'Bajajy TVS Phase 4, groupes électrogènes.' },
+    { nom: 'Financement Vert', taux: '6%', desc: 'Projets écologiques et durables.' }
+];
+
+function chargerTypesCredit() {
+    document.getElementById('credit-types-list').innerHTML = TYPES_CREDIT.map(t => `
+        <div class="credit-type-card">
+            <h4>${t.nom}</h4>
+            <div class="taux">💰 ${t.taux}</div>
+            <div class="desc">${t.desc}</div>
+        </div>
+    `).join('');
+}
+
+// MODAL MEMBRE
+let actionEnCours = '', typeEnCours = '';
+function ouvrirModalEpargne(code) { actionEnCours = 'epargne'; typeEnCours = code; document.getElementById('modal-membre').classList.add('active'); }
+function ouvrirModalCredit() { actionEnCours = 'credit'; document.getElementById('modal-membre').classList.add('active'); }
+function fermerModal(id) { document.getElementById(id).classList.remove('active'); }
+function choixMembre(estMembre) {
+    fermerModal('modal-membre');
+    if (estMembre) {
+        if (actionEnCours === 'epargne') {
+            document.getElementById('type-epargne-a4').value = typeEnCours;
+            document.getElementById('nom-epargne').value = `${user.prenom} ${user.nom}`;
+            document.getElementById('tel-epargne').value = user.telephone || '';
+            document.getElementById('date-epargne').valueAsDate = new Date();
+            document.getElementById('modal-epargne-form').classList.add('active');
+        } else {
+            document.getElementById('nom-credit').value = `${user.prenom} ${user.nom}`;
+            document.getElementById('tel-credit').value = user.telephone || '';
+            document.getElementById('date-credit').valueAsDate = new Date();
+            document.getElementById('modal-credit-form').classList.add('active');
+        }
+    } else {
+        document.getElementById('ins-email').value = user.email || '';
+        document.getElementById('modal-inscription').classList.add('active');
+    }
+}
+
+// FICHIERS
+function afficherFichiers(inputId, listId) {
+    const input = document.getElementById(inputId), list = document.getElementById(listId);
+    list.innerHTML = '';
+    if (!input.files.length) return;
+    Array.from(input.files).forEach(f => {
+        const size = (f.size / 1024).toFixed(1);
+        list.innerHTML += `<div class="file-item"><span>📎 ${f.name}</span><span style="color:#94a3b8;">${size} Ko</span></div>`;
+    });
+}
+
+async function uploadFichiers(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input.files.length) return [];
+    const fd = new FormData();
+    Array.from(input.files).forEach(f => fd.append('fichiers', f));
+    try {
+        const res = await fetch(`${API_URL}/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+            body: fd
+        });
+        const data = await res.json();
+        if (res.ok) { showToast(`${data.files.length} fichier(s) uploadé(s)`, 'success'); return data.files; }
+        showToast('❌ ' + data.message, 'error'); return [];
+    } catch (e) { showToast('❌ Erreur upload', 'error'); return []; }
+}
+
+// ==========================================
+// GPS : OPTION 1 - LOCALISATION AUTOMATIQUE
+// ==========================================
+let creditMap = null, creditMarker = null, creditPosition = null;
+
+function demanderPosition() {
+    const btn = document.getElementById('btn-locate');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recherche...';
+    showToast('Recherche de votre position...', 'info');
+
+    navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+            creditPosition = { lat, lng, accuracy };
+
+            document.getElementById('credit-lat').textContent = lat.toFixed(6);
+            document.getElementById('credit-lng').textContent = lng.toFixed(6);
+            document.getElementById('gps-result').classList.add('show');
+            document.getElementById('map-credit').classList.add('active');
+
+            if (!creditMap) {
+                creditMap = L.map('map-credit').setView([lat, lng], 16);
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(creditMap);
+            } else creditMap.setView([lat, lng], 16);
+
+            if (creditMarker) creditMap.removeLayer(creditMarker);
+            creditMarker = L.marker([lat, lng]).addTo(creditMap);
+
+            // Récupérer l'adresse
+            await obtenirAdresseCredit(lat, lng);
+
+            // Sauvegarder dans localStorage
+            localStorage.setItem('smmec_position', JSON.stringify({
+                lat, lng, accuracy,
+                address: document.getElementById('credit-address').textContent,
+                timestamp: new Date().toISOString()
+            }));
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Position enregistrée';
+            btn.style.background = '#27ae60';
+
+            const box = document.getElementById('position-status');
+            box.classList.add('verified');
+            box.innerHTML = '<i class="fas fa-check-circle" style="color:#27ae60;"></i> <strong>Toerana voamarina (GPS).</strong>';
+
+            showToast('✅ Position enregistrée !', 'success');
+        },
+        (err) => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-crosshairs"></i> Réessayer';
+            showToast('❌ GPS indisponible. Utilisez l\'option 2 (clic sur la carte).', 'error');
+        },
+        {
+            enableHighAccuracy: false,
+            timeout: 30000,
+            maximumAge: 300000
+        }
+    );
+}
+
+// ==========================================
+// GPS : OPTION 2 - CLIC SUR LA CARTE
+// ==========================================
+let modeClicCarteActif = false;
+
+function activerClicCarte() {
+    const mapDiv = document.getElementById('map-credit');
+    const gpsResult = document.getElementById('gps-result');
+    const statusBox = document.getElementById('position-status');
+
+    // Afficher la carte si elle n'est pas visible
+    mapDiv.classList.add('active');
+    gpsResult.classList.add('show');
+
+    // Initialiser la carte si elle n'existe pas
+    if (!creditMap) {
+        const ambositraLat = -20.5300;
+        const ambositraLng = 47.2400;
+
+        creditMap = L.map('map-credit').setView([ambositraLat, ambositraLng], 13);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(creditMap);
+    }
+
+    // Activer le mode clic
+    modeClicCarteActif = true;
+
+    // Mettre à jour le message
+    statusBox.innerHTML = `
+        <i class="fas fa-hand-pointer" style="color:#3498db;"></i>
+        <strong style="color:#3498db;">Tsindrio amin'ny sarintany ny toerana misy anao.</strong>
+        <br />
+        <small style="color:#64748b;">Cliquez sur la carte pour placer le repère.</small>
+    `;
+    statusBox.classList.remove('verified');
+
+    showToast('Cliquez sur la carte pour indiquer votre position', 'info');
+
+    // Écouteur d'événement : clic sur la carte
+    creditMap.on('click', function(e) {
+        if (!modeClicCarteActif) return;
+
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+
+        // Créer ou déplacer le marqueur
+        if (creditMarker) {
+            creditMarker.setLatLng([lat, lng]);
+        } else {
+            const customIcon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background:#0ea5e9;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
+            });
+            creditMarker = L.marker([lat, lng], { icon: customIcon }).addTo(creditMap);
+        }
+
+        // Mettre à jour les coordonnées affichées
+        document.getElementById('credit-lat').textContent = lat.toFixed(6);
+        document.getElementById('credit-lng').textContent = lng.toFixed(6);
+
+        // Sauvegarder la position
+        creditPosition = { lat, lng, accuracy: 0 };
+
+        // Récupérer l'adresse via Nominatim
+        obtenirAdresseCredit(lat, lng);
+
+        // Confirmer visuellement
+        statusBox.classList.add('verified');
+        statusBox.innerHTML = `
+            <i class="fas fa-check-circle" style="color:#27ae60;"></i>
+            <strong>Toerana voamarina amin'ny sarintany.</strong>
+            <br />
+            <small>Position confirmée manuellement.</small>
+        `;
+
+        // Sauvegarder dans localStorage
+        localStorage.setItem('smmec_position', JSON.stringify({
+            lat, lng,
+            accuracy: 0,
+            address: document.getElementById('credit-address').textContent,
+            timestamp: new Date().toISOString()
+        }));
+
+        showToast('Position enregistrée !', 'success');
+
+        // Désactiver le mode clic après confirmation
+        modeClicCarteActif = false;
+    });
+}
+
+// OBTENIR L'ADRESSE (Nominatim)
+async function obtenirAdresseCredit(lat, lng) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+            { headers: { 'User-Agent': 'SMMEC-Dashboard/1.0 (smmec@smmec.mg)' } }
+        );
+        const data = await response.json();
+        document.getElementById('credit-address').textContent =
+            data.display_name || 'Adresse enregistrée';
+    } catch (e) {
+        document.getElementById('credit-address').textContent = 'Adresse enregistrée';
+    }
+}
+
+// TETIK
+function ajouterLigne() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" /></td>
+        <td><input type="text" /></td>
+        <td><input type="number" class="qty" oninput="calcLigne(this)" /></td>
+        <td><input type="number" class="pu" oninput="calcLigne(this)" /></td>
+        <td><input type="number" class="total total-input" readonly /></td>
+    `;
+    document.getElementById('tetik-tbody').appendChild(tr);
+}
+function calcLigne(el) {
+    const tr = el.closest('tr');
+    const q = parseFloat(tr.querySelector('.qty').value) || 0;
+    const p = parseFloat(tr.querySelector('.pu').value) || 0;
+    tr.querySelector('.total').value = q * p;
+    let total = 0;
+    document.querySelectorAll('#tetik-tbody .total').forEach(i => total += parseFloat(i.value) || 0);
+    document.getElementById('tetik-total').value = total;
+}
+
+// SOUMISSION ÉPARGNE
+async function soumettreEpargneA4() {
+    const type_epargne = document.getElementById('type-epargne-a4').value;
+    const montant_initial = parseFloat(document.getElementById('montant-epargne-a4').value);
+    const versement_programme = parseFloat(document.getElementById('versement-epargne-a4').value) || null;
+    const objectif = document.getElementById('objectif-epargne-a4').value || null;
+
+    if (!type_epargne || !montant_initial) { showToast('Montant initial requis.', 'error'); return; }
+
+    const fichiers = await uploadFichiers('epargne-files');
+    try {
+        const data = await apiRequest('/epargne/soumettre', 'POST', { type_epargne, montant_initial, versement_programme, objectif, fichiers });
+        fermerModal('modal-epargne-form');
+        document.getElementById('modal-message-title').textContent = '🎉 Demande envoyée !';
+        document.getElementById('modal-message-text').innerHTML = `
+            <strong>${data.message}</strong><br /><br />
+            📖 Récupérez votre carnet d'épargne auprès de l'agence SMMEC la plus proche de vous !
+        `;
+        document.getElementById('modal-message').classList.add('active');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// SOUMISSION INSCRIPTION
+async function soumettreInscription() {
+    const nom = document.getElementById('ins-nom').value.trim();
+    const prenom = document.getElementById('ins-prenom').value.trim();
+    const tel = document.getElementById('ins-tel').value.trim();
+    const email = document.getElementById('ins-email').value.trim();
+    const mdp = 'Smmec' + Math.random().toString(36).slice(-8) + '!';
+    if (!nom || !prenom || !tel) { showToast('Nom, prénom et téléphone requis.', 'error'); return; }
+    try {
+        await apiRequest('/auth/register', 'POST', { nom, prenom, email: email || `membre${Date.now()}@smmec.mg`, telephone: tel, mot_de_passe: mdp });
+        fermerModal('modal-inscription');
+        document.getElementById('modal-message-title').textContent = '🎉 Inscription réussie !';
+        document.getElementById('modal-message-text').innerHTML = `
+            <strong>Bienvenue à la SMMEC !</strong><br /><br />
+            📖 Récupérez votre carnet de membre auprès de l'agence SMMEC la plus proche de vous.
+        `;
+        document.getElementById('modal-message').classList.add('active');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// SOUMISSION CRÉDIT
+async function soumettreCreditA4() {
+    const typeText = document.getElementById('type-credit-a4').value || 'Crédit Classique';
+    let id_type = 1;
+    if (typeText.includes('Agricole')) id_type = 2;
+    else if (typeText.includes('Commercial')) id_type = 3;
+    else if (typeText.includes('Équipement')) id_type = 4;
+    else if (typeText.includes('Vert')) id_type = 5;
+
+    const montant = parseFloat(document.getElementById('montant-credit-a4').value);
+    const duree_mois = parseInt(document.getElementById('duree-credit-a4').value);
+    const motif = document.getElementById('motif-credit-a4').value;
+
+    if (!montant || !duree_mois || !motif) { showToast('Montant, durée et motif requis.', 'error'); return; }
+    if (!creditPosition) { showToast('Localisez-vous d\'abord (GPS ou clic sur la carte).', 'error'); return; }
+
+    const fichiers = await uploadFichiers('credit-files');
+    const tetik = [];
+    document.querySelectorAll('#tetik-tbody tr').forEach(tr => {
+        const i = tr.querySelectorAll('input');
+        if (i[0].value) tetik.push(`${i[0].value} (${i[1].value}) : ${i[2].value} x ${i[3].value} = ${i[4].value} Ar`);
+    });
+    const motifFull = motif + (tetik.length ? '\n\nTETIK\'ASA:\n' + tetik.join('\n') : '') + `\n\nTOERANA: ${document.getElementById('credit-address').textContent}`;
+
+    try {
+        const data = await apiRequest('/credit/soumettre', 'POST', { id_type, montant, duree_mois, motif: motifFull, fichiers });
+        fermerModal('modal-credit-form');
+        document.getElementById('modal-message-title').textContent = '🎉 Demande envoyée !';
+        document.getElementById('modal-message-text').innerHTML = `
+            <strong>${data.message}</strong><br /><br />
+            💰 Mensualité : <strong>${formatAr(data.mensualite)}</strong><br /><br />
+            📖 Un technicien vous contactera. Récupérez votre carnet à l'agence SMMEC la plus proche.
+        `;
+        document.getElementById('modal-message').classList.add('active');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// SIMULATEUR
+let chartAmort = null;
+async function simuler() {
+    const montant = parseFloat(document.getElementById('sim-montant').value);
+    const duree_mois = parseInt(document.getElementById('sim-duree').value);
+    const taux_annuel = parseFloat(document.getElementById('sim-taux').value);
+    if (!montant || !duree_mois || !taux_annuel) { showToast('Remplissez tous les champs.', 'error'); return; }
+    try {
+        const d = await apiRequest('/credit/simuler', 'POST', { montant, duree_mois, taux_annuel });
+        document.getElementById('sim-mensualite').textContent = formatAr(d.mensualite);
+        document.getElementById('sim-total').textContent = formatAr(d.total_rembourse);
+        document.getElementById('sim-interets').textContent = formatAr(d.interets);
+        document.getElementById('sim-resultat').style.display = 'block';
+        const labels = [], capital = [], interets = [], restant = [];
+        let solde = montant;
+        const tm = (taux_annuel / 100) / 12;
+        const mens = d.mensualite;
+        for (let i = 1; i <= duree_mois; i++) {
+            const int = solde * tm;
+            const cap = mens - int;
+            solde -= cap;
+            labels.push(`M${i}`); capital.push(cap); interets.push(int); restant.push(Math.max(solde, 0));
+        }
+        if (chartAmort) chartAmort.destroy();
+        chartAmort = new Chart(document.getElementById('chart-amort'), {
+            type: 'line',
+            data: { labels, datasets: [
+                { label: 'Capital', data: capital, borderColor: '#27ae60', tension: 0.3 },
+                { label: 'Intérêts', data: interets, borderColor: '#e74c3c', tension: 0.3 },
+                { label: 'Restant', data: restant, borderColor: '#3498db', tension: 0.3 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// HISTORIQUE
+let derniersCredits = [];
+async function chargerCredits() {
+    try {
+        const d = await apiRequest('/credit/historique');
+        derniersCredits = d.credits || [];
+        const tb = document.getElementById('tbody-credits');
+        if (!d.credits.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Aucun crédit</td></tr>'; return; }
+        if (d.credits.some(c => c.statut === 'approuve')) {
+            document.getElementById('notif-approval').classList.add('show');
+            document.getElementById('timeline-card').style.display = 'block';
+        }
+        tb.innerHTML = d.credits.map(c => `
+            <tr>
+                <td>#${c.id_demande}</td><td>${c.nom_type}</td>
+                <td>${formatAr(c.montant)}</td>
+                <td><span class="statut ${c.statut}">${getStatutLabel(c.statut)}</span></td>
+                <td>${formatDate(c.date_demande)}</td>
+            </tr>`).join('');
+    } catch (e) { console.error(e); }
+}
+
+async function chargerEpargnes() {
+    try {
+        const d = await apiRequest('/credit/historique');
+        const tb = document.getElementById('tbody-epargnes');
+        if (!d.epargnes.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Aucune épargne</td></tr>'; return; }
+        tb.innerHTML = d.epargnes.map(e => `
+            <tr>
+                <td>#${e.id_demande}</td><td>${e.type_epargne}</td>
+                <td>${formatAr(e.montant_initial)}</td>
+                <td><span class="statut ${e.statut}">${getStatutLabel(e.statut)}</span></td>
+                <td>${formatDate(e.date_demande)}</td>
+            </tr>`).join('');
+    } catch (e) { console.error(e); }
+}
+
+// EXPORT
+function exporterExcel() {
+    if (!derniersCredits.length) { showToast('Aucune donnée.', 'error'); return; }
+    const data = derniersCredits.map(c => ({ ID: c.id_demande, Type: c.nom_type, Montant: c.montant, Statut: c.statut, Date: c.date_demande }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'MesCrédits');
+    XLSX.writeFile(wb, `SMMEC_credits_${Date.now()}.xlsx`);
+    showToast('Export Excel réussi', 'success');
+}
+
+function exporterPDF() {
+    if (!derniersCredits.length) { showToast('Aucune donnée.', 'error'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('SMMEC - Mes crédits', 14, 20);
+    doc.setFontSize(10);
+    let y = 35;
+    derniersCredits.forEach(c => {
+        doc.text(`#${c.id_demande} - ${c.nom_type} - ${formatAr(c.montant)} - ${getStatutLabel(c.statut)}`, 14, y);
+        y += 7;
+        if (y > 270) { doc.addPage(); y = 20; }
+    });
+    doc.save(`SMMEC_credits_${Date.now()}.pdf`);
+    showToast('Export PDF réussi', 'success');
+}
+
+// INIT
+chargerTypesEpargne();
+chargerTypesCredit();
+chargerCredits();
+chargerEpargnes();
+</script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMMEC - Connexion / Inscription</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #F5B041 0%, #C0392B 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: #fff;
+            padding: 35px 40px 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 440px;
+        }
+
+        /* ==========================================
+           LOGO EN HAUT
+           ========================================== */
+        .logo-header {
+            text-align: center;
+            padding-bottom: 25px;
+            border-bottom: 3px solid #F5B041;
+            margin-bottom: 25px;
+        }
+        .logo-header img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 12px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .logo-header h1 {
+            color: #C0392B;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            margin-bottom: 6px;
+        }
+        .logo-header p {
+            color: #5A5A5A;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            line-height: 1.5;
+        }
+
+        /* Placeholder si l'image n'existe pas */
+        .logo-placeholder {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 12px;
+            background: linear-gradient(135deg, #F5B041, #C0392B);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 40px;
+            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(192, 57, 43, 0.3);
+        }
+
+        /* ==========================================
+           ONGLETS CONNEXION / INSCRIPTION
+           ========================================== */
+        .tabs {
+            display: flex;
+            margin-bottom: 22px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 4px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: #F5B041;
+            color: #1e293b;
+        }
+        .tab:hover:not(.active) {
+            background: rgba(0,0,0,0.04);
+        }
+
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+
+        /* ==========================================
+           FORMULAIRE
+           ========================================== */
+        label {
+            display: block;
+            font-weight: 600;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #1e293b;
+        }
+        input {
+            width: 100%;
+            padding: 13px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+        input:focus {
+            border-color: #F5B041;
+            outline: none;
+            background: #fff;
+        }
+
+        /* ==========================================
+           CHAMP MOT DE PASSE AVEC ŒIL
+           ========================================== */
+        .password-wrapper {
+            position: relative;
+        }
+        .password-wrapper input {
+            padding-right: 48px;
+        }
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 16px;
+            padding: 5px 8px;
+            transition: color 0.2s;
+            border-radius: 5px;
+        }
+        .toggle-password:hover {
+            color: #C0392B;
+            background: rgba(192, 57, 43, 0.05);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* ==========================================
+           BOUTON
+           ========================================== */
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: #F5B041;
+            color: #1e293b;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 22px;
+            transition: all 0.2s;
+        }
+        .submit-btn:hover {
+            background: #e09e30;
+            transform: translateY(-2px);
+        }
+
+        /* ==========================================
+           MESSAGES
+           ========================================== */
+        .msg {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            display: none;
+        }
+        .error {
+            background: #fadbd8;
+            color: #922b21;
+        }
+        .success {
+            background: #d5f5e3;
+            color: #1e8449;
+        }
+
+        /* ==========================================
+           FOOTER
+           ========================================== */
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 18px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container { padding: 25px 22px 30px; }
+            .logo-header img { max-width: 120px; }
+            .logo-header h1 { font-size: 22px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="auth-container">
+
+    <!-- ==========================================
+         LOGO EN HAUT
+         ========================================== -->
+    <div class="logo-header">
+        <img src="img/logo-smmec.png" alt="SMMEC"
+             onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';" />
+        <div id="logo-fallback" class="logo-placeholder" style="display:none;">S</div>
+        <h1>SMMEC</h1>
+        <p>Société Malagasy Mutualiste<br />d'Épargne et de Crédit</p>
+    </div>
+
+    <!-- ==========================================
+         ONGLETS
+         ========================================== -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('login')">🔐 Connexion</button>
+        <button class="tab" onclick="switchTab('register')">📝 Inscription</button>
+    </div>
+
+    <!-- ==========================================
+         FORMULAIRE CONNEXION
+         ========================================== -->
+    <div id="section-login" class="form-section active">
+        <div id="login-error" class="msg error"></div>
+        <div id="login-success" class="msg success"></div>
+
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="votre@email.mg" autocomplete="email" />
+
+        <label>Mot de passe</label>
+        <div class="password-wrapper">
+            <input type="password" id="login-mdp" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="toggle-password" onclick="togglePassword('login-mdp', this)" title="Afficher / Masquer">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+
+        <button class="submit-btn" onclick="login()">
+            <i class="fas fa-sign-in-alt"></i> Se connecter
+        </button>
+    </div>
+
+    <!-- ==========================================
+         FORMULAIRE INSCRIPTION
+         ========================================== -->
+    <div id="section-register" class="form-section">
+        <div id="reg-error" class="msg error"></div>
+        <div id="reg-success" class="msg success"></div>
+
+        <div class="form-row">
+            <div>
+                <label>Nom *</label>
+                <input type="text" id="reg-nom" placeholder="Rakoto" />
+            </div>
+            <div>
+                <label>Prénom *</label>
+                <input type="text" id="reg-prenom" placeholder="Jean" />
+            </div>
+        </div>
+
+        <label>Email *</label>
+        <input type="email" id="reg-email" placeholder="votre@email.mg" />
+
+        <label>Téléphone *</label>
+        <input type="tel" id="reg-tel" placeholder="034 12 345 67" />
+
+        <label>Mot de passe *</label>
+        <div class="password-wrapper">
+            <input type="password" id="reg-mdp" placeholder="Au moins 8 caractères" />
+            <button type="button" class="toggle-password" onclick="togglePassword('reg-mdp', this)" title="Afficher / Masquer">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+
+        <label>Confirmer le mot de passe *</label>
+        <div class="password-wrapper">
+            <input type="password" id="reg-mdp2" placeholder="Confirmez" />
+            <button type="button" class="toggle-password" onclick="togglePassword('reg-mdp2', this)" title="Afficher / Masquer">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+
+        <button class="submit-btn" onclick="register()">
+            <i class="fas fa-user-plus"></i> Créer mon compte
+        </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        © 2026 SMMEC — Tous droits réservés
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+// ==========================================
+// AFFICHER / MASQUER MOT DE PASSE
+// ==========================================
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// ==========================================
+// ONGLETS
+// ==========================================
+function switchTab(t) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab')[t === 'login' ? 0 : 1].classList.add('active');
+    document.getElementById('section-' + t).classList.add('active');
+}
+
+// ==========================================
+// CONNEXION
+// ==========================================
+async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const mot_de_passe = document.getElementById('login-mdp').value;
+    const err = document.getElementById('login-error');
+    const ok = document.getElementById('login-success');
+    err.style.display = 'none';
+    ok.style.display = 'none';
+
+    if (!email || !mot_de_passe) {
+        err.textContent = '❌ Remplissez tous les champs.';
+        err.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, mot_de_passe })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            ok.textContent = '✅ Connexion réussie ! Redirection...';
+            ok.style.display = 'block';
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            setTimeout(() => {
+                window.location.href = data.user.role === 'admin'
+                    ? 'admin/index.html'
+                    : 'client/index.html';
+            }, 600);
+        } else {
+            err.textContent = '❌ ' + data.message;
+            err.style.display = 'block';
+        }
+    } catch (e) {
+        err.textContent = '❌ Erreur de connexion au serveur.';
+        err.style.display = 'block';
+        console.error(e);
+    }
+}
+
+// ==========================================
+// INSCRIPTION
+// ==========================================
+async function register() {
+    const nom = document.getElementById('reg-nom').value.trim();
+    const prenom = document.getElementById('reg-prenom').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const telephone = document.getElementById('reg-tel').value.trim();
+    const mot_de_passe = document.getElementById('reg-mdp').value;
+    const mdp2 = document.getElementById('reg-mdp2').value;
+    const err = document.getElementById('reg-error');
+    const ok = document.getElementById('reg-success');
+    err.style.display = 'none';
+    ok.style.display = 'none';
+
+    if (!nom || !prenom || !email || !telephone || !mot_de_passe) {
+        err.textContent = '❌ Tous les champs sont obligatoires.';
+        err.style.display = 'block';
+        return;
+    }
+    if (mot_de_passe !== mdp2) {
+        err.textContent = '❌ Les mots de passe ne correspondent pas.';
+        err.style.display = 'block';
+        return;
+    }
+    if (mot_de_passe.length < 8) {
+        err.textContent = '❌ Minimum 8 caractères.';
+        err.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nom, prenom, email, telephone, mot_de_passe })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            ok.textContent = '✅ Inscription réussie ! Vous pouvez vous connecter.';
+            ok.style.display = 'block';
+            ['reg-nom','reg-prenom','reg-email','reg-tel','reg-mdp','reg-mdp2']
+                .forEach(id => document.getElementById(id).value = '');
+            setTimeout(() => switchTab('login'), 1500);
+        } else {
+            err.textContent = '❌ ' + data.message;
+            err.style.display = 'block';
+        }
+    } catch (e) {
+        err.textContent = '❌ Erreur de connexion au serveur.';
+        err.style.display = 'block';
+        console.error(e);
+    }
+}
+
+// Enter pour valider
+document.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+        if (document.getElementById('section-login').classList.contains('active')) login();
+        else register();
+    }
+});
+</script>
+</body>
+</html>

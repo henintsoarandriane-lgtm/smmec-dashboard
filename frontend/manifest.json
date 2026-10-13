@@ -1,0 +1,19 @@
+{
+  "name": "SMMEC - Espace Client",
+  "short_name": "SMMEC",
+  "description": "Dashboard SMMEC - Crédit et Épargne",
+  "start_url": "/client/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5B041",
+  "theme_color": "#C0392B",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "img/logo-smmec.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

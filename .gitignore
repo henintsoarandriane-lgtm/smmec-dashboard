@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.local
+backend/uploads/*
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.zip
+frontend/videos/*.mp4
+frontend/videos/*.mp3
+frontend/videos/*.avi
+*.mp4
+*.mp3
+*.avi
+*.mov

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#C0392B" />
+<link rel="manifest" href="../manifest.json" />
+<title>Espace Admin - SMMEC</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body { background: #f4f7fc; display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar { width: 260px; background: #f8bc5a; position: fixed; height: 100vh; overflow-y: auto; z-index: 1000; transition: transform 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+.sidebar .logo { padding: 18px 15px; text-align: center; border-bottom: 2px solid rgba(0,0,0,0.1); }
+.sidebar .logo img { max-width: 130px; }
+.sidebar .logo h3 { font-size: 10px; color: #5A5A5A; margin-top: 4px; text-transform: uppercase; }
+.menu { list-style: none; padding: 10px 0; }
+.menu li { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; border-left: 4px solid transparent; position: relative; }
+.menu li:hover { background: rgba(0,0,0,0.08); }
+.menu li.active { background: #C0392B; color: #fff; border-left-color: #fff; font-weight: 600; }
+.menu li.active i { color: #fff; }
+.menu li.orchid-link {
+    background: #2c3e50;
+    color: #fff;
+    margin-top: 10px;
+    border-top: 2px solid #F5B041;
+    border-radius: 0 0 8px 8px;
+}
+.menu li.orchid-link:hover {
+    background: #1a252f;
+}
+.menu li.orchid-link i {
+    color: #F5B041 !important;
+}
+.menu li i { color: #7B2D26; width: 18px; font-size: 15px; }
+.menu li .badge { background: #e74c3c; color: #fff; border-radius: 50%; padding: 2px 7px; font-size: 10px; margin-left: auto; font-weight: 700; animation: pulse-badge 1.5s infinite; }
+@keyframes pulse-badge { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+.sidebar-footer { padding: 12px; text-align: center; font-size: 10px; color: #5A5A5A; border-top: 2px solid rgba(0,0,0,0.1); }
+
+/* CONTENU */
+.main-content { margin-left: 260px; flex: 1; }
+.header { background: #fff; padding: 14px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: sticky; top: 0; z-index: 100; }
+.header h2 { color: #C0392B; font-size: 16px; }
+.header .user-info { display: flex; align-items: center; gap: 12px; }
+.header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #C0392B; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.header .name { font-weight: 600; color: #0a2a44; font-size: 13px; }
+.header .role { font-size: 10px; color: #64748b; }
+.header .logout-btn { background: #C0392B; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; }
+
+.page { padding: 25px; display: none; animation: fadeIn 0.3s; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page h1 { color: #0a2a44; margin-bottom: 20px; font-size: 22px; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 25px; }
+.stat-card { background: #fff; padding: 22px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #F5B041; }
+.stat-card.red { border-left-color: #C0392B; }
+.stat-card.green { border-left-color: #27ae60; }
+.stat-card.blue { border-left-color: #3498db; }
+.stat-card h3 { color: #64748b; font-size: 12px; margin-bottom: 8px; }
+.stat-card .value { color: #0a2a44; font-size: 24px; font-weight: 700; }
+
+/* CARTES */
+.card { background: #fff; padding: 22px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.card h2 { color: #0a2a44; font-size: 16px; margin-bottom: 14px; border-bottom: 3px solid #F5B041; padding-bottom: 10px; }
+
+/* GRAPHIQUES */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+.chart-container { height: 280px; }
+
+/* TABLEAU */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+th { background: #f8fafc; color: #0a2a44; font-weight: 600; }
+.statut { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; display: inline-block; }
+.en_attente { background: #fef9e7; color: #b7950b; }
+.en_cours { background: #d6eaf8; color: #1f618d; }
+.approuve, .ouverte { background: #d5f5e3; color: #1e8449; }
+.refuse, .cloturee { background: #fadbd8; color: #922b21; }
+
+/* BOUTONS ACTION */
+.btn-action { padding: 5px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; margin-right: 3px; }
+.btn-approve { background: #27ae60; color: #fff; }
+.btn-refuse { background: #e74c3c; color: #fff; }
+.btn-encours { background: #3498db; color: #fff; }
+.btn-view { background: #F5B041; color: #1e293b; }
+
+/* HAMBURGER */
+.hamburger { display: none; background: none; border: none; font-size: 22px; color: #0a2a44; cursor: pointer; }
+
+/* ==========================================
+   SIMULATION EXCEL - STYLE EXCEL
+   ========================================== */
+.excel-toolbar { display: flex; justify-content: space-between; align-items: center; background: #217346; padding: 8px 15px; border-radius: 8px 8px 0 0; flex-wrap: wrap; gap: 10px; }
+.excel-tab { background: #fff; padding: 6px 18px; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 600; color: #217346; }
+.excel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.excel-btn { background: #fff; color: #217346; border: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.excel-btn:hover { background: #e8f5e9; }
+
+.excel-input-zone { background: #f8f9fa; padding: 15px 20px; border-bottom: 2px solid #217346; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+.excel-input-row { display: flex; align-items: center; gap: 10px; }
+.excel-input-row label { font-weight: 600; color: #1e293b; font-size: 13px; }
+.excel-input-row input, .excel-input-row select { padding: 8px 12px; border: 2px solid #cbd5e1; border-radius: 6px; font-size: 13px; background: #fff; outline: none; }
+.excel-input-row input:focus, .excel-input-row select:focus { border-color: #217346; }
+
+.excel-container { overflow-x: auto; background: #fff; border: 1px solid #d0d7de; margin-bottom: 20px; }
+.excel-table { width: 100%; border-collapse: collapse; font-family: 'Calibri', 'Segoe UI', sans-serif; font-size: 13px; background: #fff; }
+.excel-table td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: right; }
+.excel-table .excel-corner { background: #e8eaed; width: 40px; }
+.excel-table .excel-row-num { background: #e8eaed; color: #5f6368; text-align: center; font-size: 11px; font-weight: 600; width: 40px; padding: 6px; }
+.excel-table .excel-col-label { background: #f1f3f4; color: #1e293b; font-weight: 600; text-align: left; min-width: 260px; }
+
+.excel-table .excel-title-row td { padding: 0; border: none; }
+.excel-table .excel-title { background: #217346; color: #fff; text-align: center; font-size: 16px; font-weight: 700; padding: 12px; letter-spacing: 1px; }
+
+.excel-header-row td { background: #217346; color: #fff; font-weight: 700; text-align: center; padding: 10px; font-size: 12px; }
+.excel-header-row .excel-col-label { background: #217346; color: #fff; text-align: left; }
+.excel-header-row .excel-row-num { background: #1a5c38; color: #fff; }
+
+.excel-blue-row td { background: #d6eaf8; color: #1f618d; font-weight: 600; }
+.excel-blue-row .excel-row-num, .excel-blue-row .excel-col-label { background: #aed6f1; color: #1f618d; }
+.excel-red-row td { background: #fadbd8; color: #922b21; font-weight: 600; }
+.excel-red-row .excel-row-num, .excel-red-row .excel-col-label { background: #f5b7b1; color: #922b21; }
+.excel-dark-row td { background: #2c3e50; color: #fff; font-weight: 700; }
+.excel-dark-row .excel-row-num, .excel-dark-row .excel-col-label { background: #1a252f; color: #fff; }
+.excel-green-row td { background: #d5f5e3; color: #1e8449; font-weight: 700; }
+.excel-green-row .excel-row-num, .excel-green-row .excel-col-label { background: #a9dfbf; color: #1e8449; }
+.excel-empty-row td { background: #fff; height: 20px; }
+
+.excel-legend { display: flex; gap: 20px; flex-wrap: wrap; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 12px; }
+.legend-item { display: flex; align-items: center; gap: 8px; color: #1e293b; font-weight: 500; }
+.legend-color { width: 20px; height: 20px; border-radius: 4px; display: inline-block; border: 1px solid #d0d7de; }
+
+/* TOAST */
+.toast { position: fixed; top: 20px; right: 20px; background: #fff; padding: 15px 25px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(450px); transition: transform 0.3s; z-index: 9999; font-size: 14px; max-width: 400px; }
+.toast.show { transform: translateX(0); }
+.toast-success { border-left: 4px solid #27ae60; color: #1e8449; }
+.toast-error { border-left: 4px solid #e74c3c; color: #922b21; }
+.toast-info { border-left: 4px solid #3498db; color: #1f618d; }
+
+@media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main-content { margin-left: 0; }
+    .hamburger { display: block; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .excel-table .excel-col-label { min-width: 180px; font-size: 11px; }
+    .excel-input-zone { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+    <div class="logo">
+        <img src="../img/logo-smmec.svg" alt="SMMEC" onerror="this.onerror=null; this.src='../img/logo-smmec.png';" />
+        <h3>Espace Admin</h3>
+    </div>
+    <ul class="menu">
+        <li class="active" data-page="dashboard"><i class="fas fa-chart-line"></i> Tableau de bord</li>
+        <li data-page="demandes-credit"><i class="fas fa-hand-holding-usd"></i> Demandes de crédit</li>
+        <li data-page="demandes-epargne"><i class="fas fa-piggy-bank"></i> Demandes d'épargne</li>
+        <li data-page="simulation-excel"><i class="fas fa-file-excel"></i> Simulation Excel</li>
+        <li class="orchid-link" onclick="window.open('http://172.28.0.20', '_blank')">
+    <i class="fas fa-external-link-alt"></i> Accéder à Orchid
+</li>
+    </ul>
+    <div class="sidebar-footer">© 2026 SMMEC</div>
+</nav>
+
+<main class="main-content">
+    <header class="header">
+        <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h2>Espace Administrateur SMMEC</h2>
+        <div class="user-info">
+            <div class="avatar" id="avatar">--</div>
+            <div>
+                <div class="name" id="user-name">Chargement...</div>
+                <div class="role">Administrateur</div>
+            </div>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </header>
+
+    <!-- PAGE DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+        <h1>📊 Tableau de bord</h1>
+        <div class="stats-grid">
+            <div class="stat-card red"><h3>Total Membres</h3><div class="value" id="stat-membres">0</div></div>
+            <div class="stat-card"><h3>Total Crédits</h3><div class="value" id="stat-credits">0</div></div>
+            <div class="stat-card green"><h3>Total épargnes</h3><div class="value" id="stat-epargnes-mt">0 Ar</div></div>
+            <div class="stat-card blue"><h3>Montant crédits</h3><div class="value" id="stat-credits-mt">0 Ar</div></div>
+        </div>
+        <div class="charts-grid">
+            <div class="card"><h2>Répartition des Crédits</h2><div class="chart-container"><canvas id="chart-credits"></canvas></div></div>
+            <div class="card"><h2>Répartition des Épargnes</h2><div class="chart-container"><canvas id="chart-epargnes"></canvas></div></div>
+        </div>
+    </div>
+
+    <!-- PAGE DEMANDES DE CRÉDIT -->
+    <div id="page-demandes-credit" class="page">
+        <h1>💰 Demandes de crédit</h1>
+        <div class="card">
+            <table>
+                <thead><tr><th>ID</th><th>Membre</th><th>Type</th><th>Montant</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
+                <tbody id="tbody-credits"><tr><td colspan="7" style="text-align:center;">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE DEMANDES D'ÉPARGNE -->
+    <div id="page-demandes-epargne" class="page">
+        <h1>🏦 Demandes d'épargne</h1>
+        <div class="card">
+            <table>
+                <thead><tr><th>ID</th><th>Membre</th><th>Type</th><th>Montant</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
+                <tbody id="tbody-epargnes"><tr><td colspan="7" style="text-align:center;">Chargement...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGE SIMULATION EXCEL -->
+    <div id="page-simulation-excel" class="page">
+        <h1><i class="fas fa-file-excel" style="color:#217346;"></i> Simulation Crédit SMMEC (Mode Excel)</h1>
+
+        <div class="excel-toolbar">
+            <div class="excel-tab">Feuil1</div>
+            <div class="excel-actions">
+                <button class="excel-btn" onclick="exporterSimulationExcel()"><i class="fas fa-download"></i> Exporter Excel</button>
+                <button class="excel-btn" onclick="exporterSimulationPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="excel-btn" onclick="reinitialiserSimulation()"><i class="fas fa-redo"></i> Réinitialiser</button>
+            </div>
+        </div>
+
+        <div class="excel-input-zone">
+            <div class="excel-input-row">
+                <label>Type de crédit :</label>
+                <select id="excel-type-credit" onchange="recalculerSimulation()">
+                    <option value="paysan">Prêt Paysan (2,5%)</option>
+                    <option value="ordinaire">Prêt Ordinaire/TPE (2,5%)</option>
+                    <option value="habitat">Habitat (2,5%)</option>
+                    <option value="scolaire">Scolaire (2%)</option>
+                </select>
+            </div>
+            <div class="excel-input-row">
+                <label>Montant (Ar) :</label>
+                <input type="number" id="excel-montant" value="2000000" oninput="recalculerSimulation()" />
+            </div>
+            <div class="excel-input-row">
+                <label>Durée (mois) :</label>
+                <input type="number" id="excel-duree" value="12" oninput="recalculerSimulation()" />
+            </div>
+        </div>
+
+        <div class="excel-container">
+            <table class="excel-table">
+                <tbody>
+                    <tr class="excel-title-row"><td class="excel-corner"></td><td colspan="5" class="excel-title">SIMULATION CREDIT SMMEC</td></tr>
+                    <tr class="excel-header-row">
+                        <td class="excel-row-num">2</td>
+                        <td class="excel-col-label">TYPE DE CREDIT</td>
+                        <td id="col-paysan">Prêt Paysan (2,5%)</td>
+                        <td id="col-ordinaire">Prêt Ordinaire/TPE (2,5%)</td>
+                        <td id="col-habitat">Habitat (2,5%)</td>
+                        <td id="col-scolaire">Scolaire (2%)</td>
+                    </tr>
+                    <tr>
+                        <td class="excel-row-num">3</td>
+                        <td class="excel-col-label">Montant (Ar)</td>
+                        <td id="cell-montant-c">-</td><td id="cell-montant-d">-</td>
+                        <td id="cell-montant-e">-</td><td id="cell-montant-f">-</td>
+                    </tr>
+                    <tr>
+                        <td class="excel-row-num">4</td>
+                        <td class="excel-col-label">DUREE (mois)</td>
+                        <td id="cell-duree-c">-</td><td id="cell-duree-d">-</td>
+                        <td id="cell-duree-e">-</td><td id="cell-duree-f">-</td>
+                    </tr>
+                    <tr>
+                        <td class="excel-row-num">5</td>
+                        <td class="excel-col-label">Capital à rembourser (mensuel)</td>
+                        <td id="cell-cap-mens-c">-</td><td id="cell-cap-mens-d">-</td>
+                        <td id="cell-cap-mens-e">-</td><td id="cell-cap-mens-f">-</td>
+                    </tr>
+                    <tr>
+                        <td class="excel-row-num">6</td>
+                        <td class="excel-col-label">Intérêt (mensuel)</td>
+                        <td id="cell-int-mens-c">-</td><td id="cell-int-mens-d">-</td>
+                        <td id="cell-int-mens-e">-</td><td id="cell-int-mens-f">-</td>
+                    </tr>
+                    <tr class="excel-empty-row"><td class="excel-row-num">7</td><td class="excel-col-label"></td><td></td><td></td><td></td><td></td></tr>
+                    <tr>
+                        <td class="excel-row-num">8</td>
+                        <td class="excel-col-label">Capital à rembourser (Trimestriel)</td>
+                        <td id="cell-cap-trim-c">-</td><td id="cell-cap-trim-d">-</td>
+                        <td id="cell-cap-trim-e">-</td><td id="cell-cap-trim-f">-</td>
+                    </tr>
+                    <tr>
+                        <td class="excel-row-num">9</td>
+                        <td class="excel-col-label">Capital à rembourser (Semestriel)</td>
+                        <td id="cell-cap-sem-c">-</td><td id="cell-cap-sem-d">-</td>
+                        <td id="cell-cap-sem-e">-</td><td id="cell-cap-sem-f">-</td>
+                    </tr>
+                    <tr class="excel-empty-row"><td class="excel-row-num">10</td><td class="excel-col-label"></td><td></td><td></td><td></td><td></td></tr>
+                    <tr class="excel-blue-row">
+                        <td class="excel-row-num">11</td>
+                        <td class="excel-col-label">Remboursement (mensuel)</td>
+                        <td id="cell-remb-mens-c">-</td><td id="cell-remb-mens-d">-</td>
+                        <td id="cell-remb-mens-e">-</td><td id="cell-remb-mens-f">-</td>
+                    </tr>
+                    <tr class="excel-blue-row">
+                        <td class="excel-row-num">12</td>
+                        <td class="excel-col-label">Remboursement (Trimestriel)</td>
+                        <td id="cell-remb-trim-c">-</td><td id="cell-remb-trim-d">-</td>
+                        <td id="cell-remb-trim-e">-</td><td>-</td>
+                    </tr>
+                    <tr class="excel-blue-row">
+                        <td class="excel-row-num">13</td>
+                        <td class="excel-col-label">Remboursement (Semestriel)</td>
+                        <td id="cell-remb-sem-c">-</td><td id="cell-remb-sem-d">-</td>
+                        <td id="cell-remb-sem-e">-</td><td>-</td>
+                    </tr>
+                    <tr class="excel-blue-row">
+                        <td class="excel-row-num">14</td>
+                        <td class="excel-col-label">Remboursement (ECHEANCE)</td>
+                        <td id="cell-remb-ech-c">-</td><td id="cell-remb-ech-d">-</td>
+                        <td id="cell-remb-ech-e">-</td><td>-</td>
+                    </tr>
+                    <tr class="excel-empty-row"><td class="excel-row-num">15</td><td class="excel-col-label"></td><td></td><td></td><td></td><td></td></tr>
+                    <tr class="excel-red-row">
+                        <td class="excel-row-num">16</td>
+                        <td class="excel-col-label">Antoka ara-bola</td>
+                        <td id="cell-antoka-c">-</td><td id="cell-antoka-d">-</td>
+                        <td id="cell-antoka-e">-</td><td id="cell-antoka-f">-</td>
+                    </tr>
+                    <tr class="excel-red-row">
+                        <td class="excel-row-num">17</td>
+                        <td class="excel-col-label">Frais de dossier</td>
+                        <td id="cell-frais-c">-</td><td id="cell-frais-d">-</td>
+                        <td id="cell-frais-e">-</td><td id="cell-frais-f">-</td>
+                    </tr>
+                    <tr class="excel-dark-row">
+                        <td class="excel-row-num">18</td>
+                        <td class="excel-col-label">RESTE (sans HARENA)</td>
+                        <td id="cell-reste-sans-c">-</td><td id="cell-reste-sans-d">-</td>
+                        <td id="cell-reste-sans-e">-</td><td id="cell-reste-sans-f">-</td>
+                    </tr>
+                    <tr class="excel-green-row">
+                        <td class="excel-row-num">19</td>
+                        <td class="excel-col-label">HARENA</td>
+                        <td id="cell-harena-c">42 000</td><td id="cell-harena-d">42 000</td>
+                        <td id="cell-harena-e">42 000</td><td id="cell-harena-f">42 000</td>
+                    </tr>
+                    <tr class="excel-green-row">
+                        <td class="excel-row-num">20</td>
+                        <td class="excel-col-label">RESTE (AVEC HARENA)</td>
+                        <td id="cell-reste-avec-c">-</td><td id="cell-reste-avec-d">-</td>
+                        <td id="cell-reste-avec-e">-</td><td id="cell-reste-avec-f">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="excel-legend">
+            <div class="legend-item"><span class="legend-color" style="background:#4A90E2;"></span> Remboursements</div>
+            <div class="legend-item"><span class="legend-color" style="background:#E74C3C;"></span> Frais et garanties</div>
+            <div class="legend-item"><span class="legend-color" style="background:#2C3E50;"></span> Reste à financer</div>
+            <div class="legend-item"><span class="legend-color" style="background:#27AE60;"></span> HARENA (assurance)</div>
+        </div>
+    </div>
+</main>
+
+<script src="../js/api.js"></script>
+<script>
+// ==========================================
+// SÉCURITÉ
+// ==========================================
+if (!requireAuth('admin')) throw new Error('Redirection');
+const user = getUser();
+document.getElementById('user-name').textContent = `${user.prenom} ${user.nom}`;
+document.getElementById('avatar').textContent = (user.prenom[0] + user.nom[0]).toUpperCase();
+
+// ==========================================
+// SOCKET.IO ADMIN
+// ==========================================
+const socket = io('http://localhost:5000');
+socket.on('connect', () => {
+    console.log('🔌 Admin connecté');
+    socket.emit('join-admin');
+});
+socket.on('nouvelle-demande', (data) => {
+    console.log('📬 Nouvelle demande :', data);
+    showToast(`🔔 ${data.message}`, 'info');
+    incrementerBadge();
+    if (typeof chargerDemandes === 'function') chargerDemandes();
+    if (typeof chargerDashboard === 'function') chargerDashboard();
+});
+
+function incrementerBadge() {
+    let count = parseInt(localStorage.getItem('badgeCount') || '0') + 1;
+    localStorage.setItem('badgeCount', count);
+    updateBadge(count);
+}
+function updateBadge(count) {
+    const menuItem = document.querySelector('[data-page="demandes-credit"]');
+    if (menuItem && count > 0) {
+        let badge = menuItem.querySelector('.badge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'badge';
+            menuItem.appendChild(badge);
+        }
+        badge.textContent = count;
+    }
+}
+const badgeCount = parseInt(localStorage.getItem('badgeCount') || '0');
+if (badgeCount > 0) updateBadge(badgeCount);
+
+// ==========================================
+// TOAST
+// ==========================================
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'bell' };
+    toast.innerHTML = `<i class="fas fa-${icons[type]}"></i><span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 5000);
+}
+
+// ==========================================
+// NAVIGATION
+// ==========================================
+document.querySelectorAll('.menu li').forEach(item => {
+    item.addEventListener('click', function() {
+        const id = this.getAttribute('data-page');
+        document.querySelectorAll('.menu li').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('page-' + id).classList.add('active');
+
+        if (id === 'dashboard') chargerDashboard();
+        if (id === 'demandes-credit' || id === 'demandes-epargne') chargerDemandes();
+        if (id === 'simulation-excel') recalculerSimulation();
+
+        // Retirer le badge quand on clique sur demandes
+        if (id === 'demandes-credit') {
+            localStorage.setItem('badgeCount', '0');
+            const badge = this.querySelector('.badge');
+            if (badge) badge.remove();
+        }
+
+        if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open');
+    });
+});
+
+// ==========================================
+// DASHBOARD
+// ==========================================
+let c1 = null, c2 = null;
+async function chargerDashboard() {
+    try {
+        const s = await apiRequest('/admin/stats');
+        document.getElementById('stat-membres').textContent = s.total_membres || 0;
+        document.getElementById('stat-credits-mt').textContent = formatAr(s.total_credits || 0);
+        document.getElementById('stat-epargnes-mt').textContent = formatAr(s.total_epargnes || 0);
+
+        let totalC = 0;
+        if (s.credits) s.credits.forEach(c => totalC += c.count);
+        document.getElementById('stat-credits').textContent = totalC;
+
+        if (c1) c1.destroy();
+        c1 = new Chart(document.getElementById('chart-credits'), {
+            type: 'doughnut',
+            data: {
+                labels: (s.credits || []).map(x => x.statut),
+                datasets: [{ data: (s.credits || []).map(x => x.count),
+                    backgroundColor: ['#F5B041', '#3498db', '#27ae60', '#e74c3c'] }]
+            }
+        });
+
+        if (c2) c2.destroy();
+        c2 = new Chart(document.getElementById('chart-epargnes'), {
+            type: 'bar',
+            data: {
+                labels: (s.epargnes || []).map(x => x.statut),
+                datasets: [{ label: 'Nombre', data: (s.epargnes || []).map(x => x.count),
+                    backgroundColor: '#F5B041' }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    } catch (e) { console.error(e); }
+}
+
+// ==========================================
+// DEMANDES
+// ==========================================
+async function chargerDemandes() {
+    try {
+        const d = await apiRequest('/admin/demandes');
+
+        const tbC = document.getElementById('tbody-credits');
+        tbC.innerHTML = d.credits.length === 0
+            ? '<tr><td colspan="7" style="text-align:center;">Aucune demande</td></tr>'
+            : d.credits.map(c => `
+                <tr>
+                    <td>#${c.id_demande}</td>
+                    <td>${c.prenom} ${c.nom}</td>
+                    <td>${c.nom_type}</td>
+                    <td>${formatAr(c.montant)}</td>
+                    <td><span class="statut ${c.statut}">${getStatutLabel(c.statut)}</span></td>
+                    <td>${formatDate(c.date_demande)}</td>
+                    <td>
+                        <button class="btn-action btn-approve" onclick="setStatutCredit(${c.id_demande}, 'approuve')">✅</button>
+                        <button class="btn-action btn-encours" onclick="setStatutCredit(${c.id_demande}, 'en_cours')">⏳</button>
+                        <button class="btn-action btn-refuse" onclick="setStatutCredit(${c.id_demande}, 'refuse')">❌</button>
+                        <button class="btn-action btn-view" onclick="voirPiecesJointes('credit', ${c.id_demande})">📎</button>
+                    </td>
+                </tr>`).join('');
+
+        const tbE = document.getElementById('tbody-epargnes');
+        tbE.innerHTML = d.epargnes.length === 0
+            ? '<tr><td colspan="7" style="text-align:center;">Aucune demande</td></tr>'
+            : d.epargnes.map(e => `
+                <tr>
+                    <td>#${e.id_demande}</td>
+                    <td>${e.prenom} ${e.nom}</td>
+                    <td>${e.type_epargne}</td>
+                    <td>${formatAr(e.montant_initial)}</td>
+                    <td><span class="statut ${e.statut}">${getStatutLabel(e.statut)}</span></td>
+                    <td>${formatDate(e.date_demande)}</td>
+                    <td>
+                        <button class="btn-action btn-approve" onclick="setStatutEpargne(${e.id_demande}, 'ouverte')">✅</button>
+                        <button class="btn-action btn-refuse" onclick="setStatutEpargne(${e.id_demande}, 'cloturee')">🔒</button>
+                        <button class="btn-action btn-view" onclick="voirPiecesJointes('epargne', ${e.id_demande})">📎</button>
+                    </td>
+                </tr>`).join('');
+    } catch (e) { console.error(e); }
+}
+
+async function setStatutCredit(id, statut) {
+    if (!confirm(`Changer le statut vers "${statut}" ?`)) return;
+    try {
+        await apiRequest(`/admin/credit/${id}`, 'PUT', { statut });
+        showToast('✅ Statut mis à jour', 'success');
+        chargerDemandes();
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+async function setStatutEpargne(id, statut) {
+    if (!confirm(`Changer le statut vers "${statut}" ?`)) return;
+    try {
+        await apiRequest(`/admin/epargne/${id}`, 'PUT', { statut });
+        showToast('✅ Statut mis à jour', 'success');
+        chargerDemandes();
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// ==========================================
+// PIÈCES JOINTES
+// ==========================================
+async function voirPiecesJointes(type, id_demande) {
+    try {
+        const res = await fetch(`${API_URL}/admin/pieces/${type}/${id_demande}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+
+        if (!data.pieces || data.pieces.length === 0) {
+            showToast('Aucune pièce jointe.', 'info');
+            return;
+        }
+
+        let html = '';
+        data.pieces.forEach(p => {
+            html += `
+                <div style="padding:12px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <a href="http://localhost:5000${p.url}" target="_blank" style="color:#C0392B; text-decoration:none; font-weight:600;">📄 ${p.nom_fichier}</a>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">${(p.taille/1024).toFixed(1)} Ko</div>
+                    </div>
+                    <a href="http://localhost:5000${p.url}" download style="background:#27ae60; color:#fff; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:12px;">⬇️</a>
+                </div>`;
+        });
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px;';
+        modal.innerHTML = `
+            <div style="background:#fff; border-radius:14px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto;">
+                <div style="background:#F5B041; padding:18px 25px; border-radius:14px 14px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="color:#1e293b; font-size:16px;">📎 Pièces jointes</h3>
+                    <button onclick="this.closest('div[style*=\\'position:fixed\\']').remove()" style="background:#C0392B; color:#fff; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:20px;">${html}</div>
+            </div>`;
+        document.body.appendChild(modal);
+    } catch (e) {
+        showToast('❌ Erreur chargement', 'error');
+    }
+}
+
+// ==========================================
+// SIMULATION EXCEL SMMEC
+// ==========================================
+const TAUX_CREDIT = { paysan: 2.5, ordinaire: 2.5, habitat: 2.5, scolaire: 2.0 };
+const HARENA_FIXE = 42000;
+
+function formatNumber(n) {
+    if (isNaN(n) || n === null || n === undefined) return '-';
+    return Math.round(n).toLocaleString('fr-FR');
+}
+
+function recalculerSimulation() {
+    const type = document.getElementById('excel-type-credit').value;
+    const montant = parseFloat(document.getElementById('excel-montant').value) || 0;
+    const duree = parseFloat(document.getElementById('excel-duree').value) || 0;
+    const taux = TAUX_CREDIT[type] / 100;
+
+    const capitalMensuel = duree > 0 ? montant / duree : 0;
+    const interetMensuel = montant * taux;
+    const capitalTrim = montant / 4;
+    const capitalSem = montant / 2;
+    const rembMensuel = capitalMensuel + interetMensuel;
+    const rembTrim = capitalMensuel + interetMensuel + capitalTrim;
+    const rembSem = capitalMensuel + interetMensuel + capitalSem;
+    const rembEcheance = montant + interetMensuel;
+    const tauxAntoka = type === 'paysan' ? 0.15 : 0.10;
+    const antoka = montant * tauxAntoka;
+    const fraisDossier = montant * 0.035;
+    const resteSans = montant - (antoka + fraisDossier);
+    const resteAvec = montant - (antoka + fraisDossier + HARENA_FIXE);
+
+    // Colonnes C, D, E
+    ['c', 'd', 'e'].forEach(col => {
+        document.getElementById(`cell-montant-${col}`).textContent = formatNumber(montant);
+        document.getElementById(`cell-duree-${col}`).textContent = duree;
+        document.getElementById(`cell-cap-mens-${col}`).textContent = formatNumber(capitalMensuel);
+        document.getElementById(`cell-int-mens-${col}`).textContent = formatNumber(interetMensuel);
+        document.getElementById(`cell-cap-trim-${col}`).textContent = formatNumber(capitalTrim);
+        document.getElementById(`cell-cap-sem-${col}`).textContent = formatNumber(capitalSem);
+        document.getElementById(`cell-remb-mens-${col}`).textContent = formatNumber(rembMensuel);
+        document.getElementById(`cell-remb-trim-${col}`).textContent = formatNumber(rembTrim);
+        document.getElementById(`cell-remb-sem-${col}`).textContent = formatNumber(rembSem);
+        document.getElementById(`cell-remb-ech-${col}`).textContent = formatNumber(rembEcheance);
+        document.getElementById(`cell-antoka-${col}`).textContent = formatNumber(antoka);
+        document.getElementById(`cell-frais-${col}`).textContent = formatNumber(fraisDossier);
+        document.getElementById(`cell-reste-sans-${col}`).textContent = formatNumber(resteSans);
+        document.getElementById(`cell-reste-avec-${col}`).textContent = formatNumber(resteAvec);
+    });
+
+    // Colonne F (Scolaire)
+    document.getElementById('cell-montant-f').textContent = formatNumber(montant);
+    document.getElementById('cell-duree-f').textContent = duree;
+    document.getElementById('cell-cap-mens-f').textContent = formatNumber(capitalMensuel);
+    document.getElementById('cell-int-mens-f').textContent = formatNumber(interetMensuel);
+    document.getElementById('cell-cap-trim-f').textContent = '-';
+    document.getElementById('cell-cap-sem-f').textContent = '-';
+    document.getElementById('cell-remb-mens-f').textContent = formatNumber(rembMensuel);
+    document.getElementById('cell-antoka-f').textContent = formatNumber(antoka);
+    document.getElementById('cell-frais-f').textContent = formatNumber(fraisDossier);
+    document.getElementById('cell-reste-sans-f').textContent = formatNumber(resteSans);
+    document.getElementById('cell-reste-avec-f').textContent = formatNumber(resteAvec);
+
+    // Surbrillance de la colonne active
+    const cols = ['col-paysan', 'col-ordinaire', 'col-habitat', 'col-scolaire'];
+    cols.forEach(c => document.getElementById(c).style.opacity = '0.5');
+    const map = { paysan: 'col-paysan', ordinaire: 'col-ordinaire', habitat: 'col-habitat', scolaire: 'col-scolaire' };
+    document.getElementById(map[type]).style.opacity = '1';
+}
+
+function reinitialiserSimulation() {
+    if (!confirm('Réinitialiser la simulation ?')) return;
+    document.getElementById('excel-type-credit').value = 'paysan';
+    document.getElementById('excel-montant').value = 2000000;
+    document.getElementById('excel-duree').value = 12;
+    recalculerSimulation();
+    showToast('Simulation réinitialisée', 'success');
+}
+
+// ==========================================
+// EXPORT EXCEL
+// ==========================================
+function exporterSimulationExcel() {
+    const type = document.getElementById('excel-type-credit').value;
+    const montant = parseFloat(document.getElementById('excel-montant').value) || 0;
+    const duree = parseFloat(document.getElementById('excel-duree').value) || 0;
+    const taux = TAUX_CREDIT[type] / 100;
+
+    const capitalMensuel = duree > 0 ? montant / duree : 0;
+    const interetMensuel = montant * taux;
+    const antoka = montant * (type === 'paysan' ? 0.15 : 0.10);
+    const fraisDossier = montant * 0.035;
+    const resteSans = montant - (antoka + fraisDossier);
+    const resteAvec = montant - (antoka + fraisDossier + HARENA_FIXE);
+
+    const data = [
+        ['SIMULATION CREDIT SMMEC'],
+        [],
+        ['TYPE DE CREDIT', 'Prêt Paysan (2,5%)', 'Prêt Ordinaire/TPE (2,5%)', 'Habitat (2,5%)', 'Scolaire (2%)'],
+        ['Montant (Ar)', montant, '', '', ''],
+        ['DUREE (mois)', duree, '', '', ''],
+        ['Capital à rembourser (mensuel)', capitalMensuel, capitalMensuel, capitalMensuel, capitalMensuel],
+        ['Intérêt (mensuel)', interetMensuel, interetMensuel, interetMensuel, interetMensuel],
+        [],
+        ['Capital à rembourser (Trimestriel)', montant/4, montant/4, montant/4, ''],
+        ['Capital à rembourser (Semestriel)', montant/2, montant/2, montant/2, ''],
+        [],
+        ['Remboursement (mensuel)', capitalMensuel + interetMensuel, capitalMensuel + interetMensuel, capitalMensuel + interetMensuel, capitalMensuel + interetMensuel],
+        ['Remboursement (Trimestriel)', capitalMensuel + interetMensuel + montant/4, capitalMensuel + interetMensuel + montant/4, capitalMensuel + interetMensuel + montant/4, ''],
+        ['Remboursement (Semestriel)', capitalMensuel + interetMensuel + montant/2, capitalMensuel + interetMensuel + montant/2, capitalMensuel + interetMensuel + montant/2, ''],
+        ['Remboursement (ECHEANCE)', montant + interetMensuel, montant + interetMensuel, montant + interetMensuel, ''],
+        [],
+        ['Antoka ara-bola', antoka, antoka, antoka, antoka],
+        ['Frais de dossier', fraisDossier, fraisDossier, fraisDossier, fraisDossier],
+        [],
+        ['RESTE (sans HARENA)', resteSans, resteSans, resteSans, resteSans],
+        [],
+        ['HARENA', HARENA_FIXE, HARENA_FIXE, HARENA_FIXE, HARENA_FIXE],
+        ['RESTE (AVEC HARENA)', resteAvec, resteAvec, resteAvec, resteAvec]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Simulation');
+    XLSX.writeFile(wb, `SMMEC_Simulation_${type}_${Date.now()}.xlsx`);
+    showToast('Export Excel réussi !', 'success');
+}
+
+// ==========================================
+// EXPORT PDF
+// ==========================================
+function exporterSimulationPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const type = document.getElementById('excel-type-credit').value;
+    const montant = parseFloat(document.getElementById('excel-montant').value) || 0;
+    const duree = parseFloat(document.getElementById('excel-duree').value) || 0;
+    const taux = TAUX_CREDIT[type] / 100;
+
+    const capitalMensuel = duree > 0 ? montant / duree : 0;
+    const interetMensuel = montant * taux;
+    const antoka = montant * (type === 'paysan' ? 0.15 : 0.10);
+    const fraisDossier = montant * 0.035;
+    const resteSans = montant - (antoka + fraisDossier);
+    const resteAvec = montant - (antoka + fraisDossier + HARENA_FIXE);
+
+    doc.setFillColor(33, 115, 70);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text('SIMULATION CREDIT SMMEC', 105, 14, { align: 'center' });
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    let y = 35;
+
+    const lignes = [
+        ['Type de crédit :', type],
+        ['Montant (Ar) :', formatNumber(montant)],
+        ['Durée (mois) :', duree],
+        [],
+        ['Capital mensuel :', formatNumber(capitalMensuel) + ' Ar'],
+        ['Intérêt mensuel :', formatNumber(interetMensuel) + ' Ar'],
+        ['Remboursement mensuel :', formatNumber(capitalMensuel + interetMensuel) + ' Ar'],
+        ['Remboursement trimestriel :', formatNumber(capitalMensuel + interetMensuel + montant/4) + ' Ar'],
+        ['Remboursement semestriel :', formatNumber(capitalMensuel + interetMensuel + montant/2) + ' Ar'],
+        ['Remboursement échéance :', formatNumber(montant + interetMensuel) + ' Ar'],
+        [],
+        ['Antoka ara-bola :', formatNumber(antoka) + ' Ar'],
+        ['Frais de dossier :', formatNumber(fraisDossier) + ' Ar'],
+        ['Reste sans HARENA :', formatNumber(resteSans) + ' Ar'],
+        ['HARENA :', formatNumber(HARENA_FIXE) + ' Ar'],
+        ['Reste avec HARENA :', formatNumber(resteAvec) + ' Ar']
+    ];
+
+    lignes.forEach(l => {
+        if (l.length === 0) { y += 5; return; }
+        doc.setFont(undefined, 'bold');
+        doc.text(l[0], 15, y);
+        doc.setFont(undefined, 'normal');
+        doc.text(String(l[1]), 100, y);
+        y += 9;
+    });
+
+    doc.save(`SMMEC_Simulation_${type}_${Date.now()}.pdf`);
+    showToast('Export PDF réussi !', 'success');
+}
+
+// ==========================================
+// INIT
+// ==========================================
+chargerDashboard();
+recalculerSimulation();
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('../service-worker.js')
+        .then(() => console.log('✅ SW admin'))
+        .catch(err => console.log(err));
+}
+</script>
+</body>
+</html>
